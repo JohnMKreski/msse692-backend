@@ -1,6 +1,6 @@
 # Ark Valley Events – Backend
 
-![CI](https://github.com/JohnMKreski/msse692-backend/actions/workflows/ci.yml/badge.svg)
+[//]: # (![CI]&#40;https://github.com/JohnMKreski/msse692-backend/actions/workflows/ci.yml/badge.svg&#41;)
 
 A backend service for the **Ark Valley Events** platform. This project provides a REST API for managing users and events, built with **Spring Boot**, **PostgreSQL**, and secured with **Firebase Authentication**.
 
@@ -119,5 +119,4 @@ spring:
 
 ## License
 
-This project is developed as part of the **MSSE 692 Practicum** at Regis University.
-(You can add a license section here if you want open-source licensing later.)
+This project is developed as part of the **MSSE 692 Practicum I** at Regis University.
