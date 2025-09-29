@@ -55,7 +55,7 @@ src/main/java/com/arkvalleyevents/msse692_backend
 ### Run Locally (Dev Profile with H2)
 
 ```bash
-mvn spring-boot:run -Dspring-boot.run.profiles=dev
+mvn spring-boot:run
 ```
 
 API will be available at: [http://localhost:8080](http://localhost:8080)
@@ -71,6 +71,33 @@ export DB_PASS=yourpass
 
 mvn spring-boot:run -Dspring-boot.run.profiles=prod
 ```
+
+---
+
+Demo Mode
+
+This project is set up as a developer demo. When you start the application:
+
+The backend will automatically open Swagger UI in your default browser.
+
+Swagger UI is available at: http://localhost:8080/swagger-ui.html
+
+The dev profile uses an in-memory H2 database (no external setup needed).
+
+CORS is wide open in dev mode so you can test with Angular or Postman.
+
+
+### Profiles
+
+* dev (default)
+  * H2 database
+  * CORS open (*)
+  * Auto Swagger browser launch
+
+* prod
+  * PostgreSQL database
+  * CORS restricted to allowed origins
+  * No auto-browser launch (server-friendly)
 
 ---
 
