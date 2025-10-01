@@ -18,6 +18,11 @@ public class Artist {
     private String biography;
     private String website;
 
+    //A many-to-many relationship in databases means that multiple records in one table can be associated with multiple records in another table
+    //mappedBy indicates that the relationship is bidirectional and the ownership is on the other side (ConcertEvent)
+    // mappedBy = "artists" means the ownership of the relationship is on the ConcertEvent side. The Artist entity is the inverse side,
+    // and the ConcertEvent entity should have a @ManyToMany field named artists that owns the relationship.
     @ManyToMany(mappedBy = "artists")
-    private Set<ConcertEvent> concertEvents = new HashSet<>();
+    private Set<Event> events = new HashSet<>();
 }
+

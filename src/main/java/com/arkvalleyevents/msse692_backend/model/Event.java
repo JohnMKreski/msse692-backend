@@ -39,18 +39,45 @@ public class Event {
     //========== Relationships ==========
     //Found on google, could be good reference
 
-//    // Many-to-One relationship with Venue
-//    // Slug?
-//    @ManyToOne(fetch = FetchType.LAZY)
-//    @JoinColumn(name = "venue_id")
-//    private Venue venue;
-//
-//    private Set<Artist> artists = new HashSet<>();
-//
-//    @ElementCollection
-//    @CollectionTable(name = "event_image_urls", joinColumns = @JoinColumn(name = "event_id"))
-//    @Column(name = "image_url")
-//    private Set<String> imageUrls = new HashSet<>();
+    // Many-to-One relationship with Venue
+    /**
+     * In JPA/Hibernate, `fetch` is an attribute used in relationship annotations (like `@ManyToOne`, `@OneToMany`, etc.) to specify how related entities are loaded from the database.
+     *
+     * - `FetchType.LAZY`: Related entities are loaded only when accessed (on-demand). This improves performance by avoiding unnecessary data loading.
+     * - `FetchType.EAGER`: Related entities are loaded immediately with the parent entity (at query time).
+     *
+     * Example:
+     * ```java
+     * @ManyToOne(fetch = FetchType.LAZY) // Venue is loaded only when accessed
+     * private Venue venue;
+     * ```
+     *
+     * Use `LAZY` for large or optional relationships, and `EAGER` when you always need the related data.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    //JoinColumn specifies the foreign key column in the Event table that references the primary key of the Venue table
+    @JoinColumn(name = "venue_id")
+    private Venue venue;
+
+    @ManyToMany
+    @JoinTable(
+            name = "event_artist",
+            joinColumns = @JoinColumn(name = "event_id"),
+            inverseJoinColumns = @JoinColumn(name = "artist_id")
+    )
+    private Set<Artist> artists = new HashSet<>();
+
+    // ElementCollection is used to define a collection of basic types or embeddable objects
+    // CollectionTable specifies the table that holds the collection
+    // JoinColumn specifies the foreign key column in the collection table that references the primary key of the Event table
+    // Column specifies the column in the collection table that holds the elements of the collection
+    // This setup allows an Event to have multiple associated image URLs stored in a separate table
+    // This is useful for storing multiple images related to an event without creating a separate entity
+    // Each image URL is stored as a string in the event_image_urls table, linked to the Event by event_id
+    @ElementCollection
+    @CollectionTable(name = "event_image_urls", joinColumns = @JoinColumn(name = "event_id"))
+    @Column(name = "image_url")
+    private Set<String> imageUrls = new HashSet<>();
 
 
     //Defined as bean
@@ -85,6 +112,7 @@ public class Event {
     public static boolean hasNullOrInvalid(Object a, Object b, Object c, Object d, Object e, Object f) {
         try {
             if (a == null || b == null || c == null || d == null || e == null || f == null) return true;
+            logger.error("Event has null field(s)");
             return false;
         } catch (Exception ex) {
             return true;
@@ -97,6 +125,5 @@ public class Event {
         return null;
     }
 
-    public
 
 }
