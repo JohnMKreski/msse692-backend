@@ -1,12 +1,18 @@
 package com.arkvalleyevents.msse692_backend.model;
 
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -15,11 +21,6 @@ import java.util.Set;
 @Data
 @NoArgsConstructor
 public class Event {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-
-    private static final Logger logger = LoggerFactory.getLogger(Event.class);
-
     @Override
     public String toString() {
         return String.format(
@@ -28,12 +29,26 @@ public class Event {
     }
 
     //========== Fields ==========
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
     private String eventType;
+
+    @NotBlank
     private String eventName;
-    private String eventDate;
-    private String eventTime;
-    private String eventLocation; //Needed with Venue entity?
+
+    @NotNull
+    private LocalDate eventDate;
+
+    @NotNull
+    private LocalTime eventTime;
+
+    @NotNull
+    private LocalDateTime eventDateTime; //Combine date and time?
+
+    private String eventLocation; //Needed with Venue entity? Venue has venue.getAddress() Will keep for events that's dont have a "venue" (e.g., woodsy)
+
     private String eventDescription;
 
     //========== Relationships ==========
@@ -108,22 +123,6 @@ public class Event {
 
 
     //========== Other Methods ==========
-    // type = a, name = b, date = c, time = d, location = e, description = f
-    public static boolean hasNullOrInvalid(Object a, Object b, Object c, Object d, Object e, Object f) {
-        try {
-            if (a == null || b == null || c == null || d == null || e == null || f == null) return true;
-            logger.error("Event has null field(s)");
-            return false;
-        } catch (Exception ex) {
-            return true;
-        }
-    }
-
-    // Validate all fields are non-null and valid
-    public static String validate(String a, String b, String c, String d, String e, String f) {
-        if (hasNullOrInvalid(a, b, c, d, e, f)) return "One or more fields are null or invalid";
-        return null;
-    }
 
 
 }

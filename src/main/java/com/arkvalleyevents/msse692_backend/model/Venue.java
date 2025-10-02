@@ -1,8 +1,13 @@
 package com.arkvalleyevents.msse692_backend.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.validator.constraints.URL;
+
 import java.util.HashSet;
 import java.util.Set;
 
@@ -13,10 +18,20 @@ public class Venue {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @NotBlank
     private String name;
+
+    @NotBlank
     private String address;
-    private int capacity;
+
+    @Min(1)
+    private Integer capacity;
+
+    @Column(length = 2000)
     private String description;
+
+    @URL
     private String website;
 
     // One-to-Many is used here because one venue can host multiple events
