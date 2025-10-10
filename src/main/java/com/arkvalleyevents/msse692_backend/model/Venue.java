@@ -17,7 +17,7 @@ import java.util.Set;
 public class Venue {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private Long venueId;
 
     @NotBlank
     private String name;

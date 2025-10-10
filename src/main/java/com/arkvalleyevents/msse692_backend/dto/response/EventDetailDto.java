@@ -15,7 +15,7 @@ import java.util.Set;
 @Data
 @NoArgsConstructor
 public class EventDetailDto {
-    private Long id;
+    private Long eventId;
     private String eventType;
     private String eventName;
     private LocalDate eventDate;

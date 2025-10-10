@@ -31,7 +31,7 @@ public class Event {
     //========== Fields ==========
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private Long eventId;
 
     private String eventType;
 
@@ -93,6 +93,16 @@ public class Event {
     @CollectionTable(name = "event_image_urls", joinColumns = @JoinColumn(name = "event_id"))
     @Column(name = "image_url")
     private Set<String> imageUrls = new HashSet<>();
+
+
+
+    //TODO: Add relationship with User for event creator/organizer
+    public void setStatus(Object status) {
+    }
+
+    //TODO: Change to enum for DRAFT, PUBLISHED, CANCELLED
+    public void getStatus(Object status) {
+    }
 
 
     //Defined as bean

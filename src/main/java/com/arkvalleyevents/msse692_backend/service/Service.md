@@ -1,0 +1,1 @@
+The service interface should be DTO-centric

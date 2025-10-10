@@ -12,7 +12,7 @@ import java.util.Set;
 @Data
 @NoArgsConstructor
 public class VenueDetailDto {
-    private Long id;
+    private Long venueId;
     private String name;
     private String address;
     private Integer capacity;

@@ -6,7 +6,7 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 public class ArtistDto {
-    private Long id;
+    private Long artistId;
     private String name;
     private String genre;
     private String biography;

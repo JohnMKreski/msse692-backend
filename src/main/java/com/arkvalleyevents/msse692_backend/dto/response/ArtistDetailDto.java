@@ -12,7 +12,7 @@ import java.util.Set;
 @Data
 @NoArgsConstructor
 public class ArtistDetailDto {
-    private Long id;
+    private Long artistId;
     private String name;
     private String genre;
     private String biography;
