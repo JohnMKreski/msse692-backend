@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration scan="true" scanPeriod="30 seconds">
+
+    <!-- ========= LOG PATTERN ========= -->
+    <property name="LOG_PATTERN" value="%clr(%d{yyyy-MM-dd HH:mm:ss.SSS}){faint} %clr(%-5level) %clr([%15.15t]){faint} %clr(%-40.40logger{36}){cyan} - %clr(%msg){white}%n"/>
+
+    <!-- ========= CONSOLE APPENDER (colorized) ========= -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${LOG_PATTERN}</pattern>
+        </encoder>
+    </appender>
+
+    <!-- ========= FILE APPENDER (daily rolling) ========= -->
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <!-- Main log file -->
+        <file>logs/app.log</file>
+
+        <!-- Roll logs daily and keep 14 days -->
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>logs/app-%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>14</maxHistory>
+        </rollingPolicy>
+
+        <encoder>
+            <!-- Plain, no color (for better readability in text files) -->
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %-40.40logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- ========= LOG LEVELS ========= -->
+    <!-- Root logger: info level by default -->
+    <root level="info">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="FILE"/>
+    </root>
+
+    <!-- ========= PACKAGE OVERRIDES ========= -->
+    <!-- Reduce noise from framework logs -->
+    <logger name="org.springframework" level="warn"/>
+    <logger name="org.hibernate" level="warn"/>
+    <logger name="org.apache" level="warn"/>
+    <logger name="com.zaxxer" level="warn"/>
+
+    <!-- Increase verbosity for your own code -->
+    <logger name="com.arkvalleyevents" level="debug"/>
+
+</configuration>

@@ -20,6 +20,9 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 // Import your model and repository
 // Adjust package names to match your project.
 import com.arkvalleyevents.msse692_backend.model.Event;
@@ -34,6 +37,8 @@ import com.arkvalleyevents.msse692_backend.service.mapping.EventMapper;
 @Transactional
 public class EventServiceImpl implements EventService {
 
+    private static final Logger log = LoggerFactory.getLogger(EventServiceImpl.class);
+
     private final EventRepository eventRepository;
     private final EventMapper mapper;
 
@@ -42,130 +47,206 @@ public class EventServiceImpl implements EventService {
         this.mapper = mapper;
     }
 
+    //=========================
+    // Commands (state changes)
+    //=========================
+
     // Create
     @Override
-    public EventDetailDto createEvent(CreateEventDto request) {
-        Event entity = mapper.toEntity(request);
-        if (entity.getStatus() == null) {
-            entity.setStatus(EventStatus.DRAFT);
-        }
+    public EventDetailDto createEvent(CreateEventDto input) {
+        log.info("Creating new event: {}", input.getEventName());
+        Event entity = mapper.toEntity(input);
+        // status already defaults to DRAFT in the entity
+        // entity.setStatus(EventStatus.DRAFT);
+
         Event saved = eventRepository.save(entity);
-        return mapper.toDetailDto(saved);
-    }
-
-    // Read
-    @Override
-    @Transactional(readOnly = true)
-    public EventDetailDto getEventById(Long eventId) {
-        Event event = eventRepository.findById(eventId)
-                .orElseThrow(() -> new EntityNotFoundException("Event not found: " + eventId));
-        return mapper.toDetailDto(event);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public EventDetailDto getEventBySlug(String slug) {
-        Event event = eventRepository.findBySlug(slug) // TODO: implement in EventRepository
-                .orElseThrow(() -> new EntityNotFoundException("Event not found: " + slug));
-        return mapper.toDetailDto(event);
-    }
-
-    // List/Search
-    @Override
-    @Transactional(readOnly = true)
-    public List<EventDto> listEvents(Map<String, String> filters, int page, int size, String sort) {
-        Pageable pageable = PageRequest.of(Math.max(page, 0), Math.max(size, 1), parseSort(sort));
-        // TODO: apply filters with Specification if needed; using simple paging for now
-        Page<Event> pageResult = eventRepository.findAll(pageable);
-        return pageResult.stream().map(mapper::toDto).toList();
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public List<EventDto> listUpcoming(LocalDateTime from, int limit) {
-        Pageable pageable = PageRequest.of(0, Math.max(limit, 1), Sort.by(Sort.Direction.ASC, "startAt")); // adjust field name
-        List<Event> events = eventRepository.findByStartAtAfter(from, pageable); // TODO: implement in EventRepository
-        return events.stream().map(mapper::toDto).toList();
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public List<EventDto> getAllEvents() {
-        return eventRepository.findAll().stream().map(mapper::toDto).toList();
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public List<EventDto> getEventsByType(String eventType) {
-        List<Event> events = eventRepository.findByTypeIgnoreCase(eventType); // TODO: implement in EventRepository
-        return events.stream().map(mapper::toDto).toList();
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public List<EventDto> getEventsByDate(String eventDate) {
-        LocalDate date = LocalDate.parse(eventDate); // expects ISO‑8601 yyyy‑MM‑dd
-        LocalDateTime start = date.atStartOfDay();
-        LocalDateTime end = date.plusDays(1).atStartOfDay().minusNanos(1);
-        List<Event> events = eventRepository.findByStartAtBetween(start, end); // TODO: implement in EventRepository
-        return events.stream().map(mapper::toDto).toList();
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public List<EventDto> getEventsByLocation(String eventLocation) {
-        List<Event> events = eventRepository.findByLocationContainingIgnoreCase(eventLocation); // TODO: implement in EventRepository
-        return events.stream().map(mapper::toDto).toList();
+        log.info("Event created successfully with ID={} and status={}", saved.getEventId(), saved.getStatus());
+        return mapper.toDetailDto(saved); //toDetailDto defined in the mapper to return EventDetailDto and take (Event entity)
     }
 
     // Update
     @Override
     public EventDetailDto updateEvent(Long eventId, UpdateEventDto request) {
+        log.debug("Attempting to publish event with ID={}", eventId);
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new EntityNotFoundException("Event not found: " + eventId));
         mapper.updateEntity(request, event); // partial update (non‑nulls)
+
         Event saved = eventRepository.save(event);
+        log.info("Event ID={} published successfully.", eventId);
         return mapper.toDetailDto(saved);
     }
 
     // Status changes
     @Override
     public EventDetailDto publishEvent(Long eventId) {
+        log.debug("Attempting to publish event ID={}", eventId);
+
         Event event = load(eventId);
+
+        if (event.getStatus() != EventStatus.DRAFT) {
+            log.warn("Cannot publish event ID={} because current status is {}", eventId, event.getStatus());
+            throw new IllegalStateException("Only DRAFT events can be published");
+        }
+
         event.setStatus(EventStatus.PUBLISHED);
         Event saved = eventRepository.save(event);
+
+        log.info("Event ID={} successfully published. Previous status=DRAFT → new status={}", eventId, saved.getStatus());
         return mapper.toDetailDto(saved);
     }
 
     @Override
     public EventDetailDto unpublishEvent(Long eventId) {
+        log.debug("Attempting to unpublish event ID={}", eventId);
+
         Event event = load(eventId);
-        event.setStatus(EventStatus.DRAFT);
+
+        if (event.getStatus() != EventStatus.PUBLISHED) {
+            log.warn("Cannot unpublish event ID={} because current status is {}", eventId, event.getStatus());
+            throw new IllegalStateException("Only PUBLISHED events can be unpublished");
+        }
+
+        event.setStatus(EventStatus.UNPUBLISHED);
         Event saved = eventRepository.save(event);
+
+        log.info("Event ID={} successfully unpublished. Previous status=PUBLISHED → new status={}", eventId, saved.getStatus());
         return mapper.toDetailDto(saved);
     }
 
     @Override
     public EventDetailDto cancelEvent(Long eventId) {
+        log.debug("Attempting to cancel event ID={}", eventId);
         Event event = load(eventId);
+
+        if (event.getStatus() == EventStatus.CANCELLED) {
+            log.warn("Event ID={} is already cancelled.", eventId);
+            throw new IllegalStateException("Event is already cancelled");
+        }
+
         event.setStatus(EventStatus.CANCELLED);
         Event saved = eventRepository.save(event);
+
+        log.info("Event ID={} successfully cancelled. Previous status={} → new status={}", eventId, event.getStatus(), saved.getStatus());
         return mapper.toDetailDto(saved);
     }
 
     // Delete
     @Override
     public void deleteEvent(Long eventId) {
+        log.warn("Deleting event with ID={}", eventId);
         if (!eventRepository.existsById(eventId)) {
             throw new EntityNotFoundException("Event not found: " + eventId);
         }
+
         eventRepository.deleteById(eventId);
+        log.info("Event ID={} deleted.", eventId);
     }
 
+    // =========================
+    // Queries (no state change)
+    // =========================
+
+    @Override
+    @Transactional(readOnly = true)
+    public EventDetailDto getEventById(Long eventId) {
+        log.debug("Fetching event by ID={}", eventId);
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new EntityNotFoundException("Event not found: " + eventId));
+        log.info("Event retrieved successfully (ID={}, status={})", event.getEventId(), event.getStatus());
+        return mapper.toDetailDto(event);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public EventDetailDto getEventBySlug(String slug) {
+        log.debug("Fetching event by slug='{}'", slug);
+        Event event = eventRepository.findBySlug(slug)
+                .orElseThrow(() -> new EntityNotFoundException("Event not found: " + slug));
+        log.info("Event retrieved successfully (slug='{}', ID={}, status={})", slug, event.getEventId(), event.getStatus());
+        return mapper.toDetailDto(event);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<EventDto> listEvents(Map<String, String> filters, int page, int size, String sort) {
+        Pageable pageable = PageRequest.of(Math.max(page, 0), Math.max(size, 1), parseSort(sort));
+        log.debug("Listing events with filters={}, page={}, size={}, sort='{}'", filters, page, size, sort);
+
+        Page<Event> pageResult = eventRepository.findAll(pageable);
+        List<EventDto> events = pageResult.stream().map(mapper::toDto).toList();
+
+        log.info("Listed {} events (page={}, size={})", events.size(), page, size);
+        return events;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<EventDto> listUpcoming(LocalDateTime from, int limit) {
+        Pageable pageable = PageRequest.of(0, Math.max(limit, 1), Sort.by(Sort.Direction.ASC, "startAt"));
+        log.debug("Listing upcoming events starting after {} (limit={})", from, limit);
+
+        List<Event> events = eventRepository.findByStartAtAfter(from, pageable);
+        List<EventDto> dtos = events.stream().map(mapper::toDto).toList();
+
+        log.info("Retrieved {} upcoming events (after={})", dtos.size(), from);
+        return dtos;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<EventDto> getAllEvents() {
+        log.debug("Fetching all events (no filters or paging)");
+        List<EventDto> events = eventRepository.findAll().stream().map(mapper::toDto).toList();
+        log.info("Retrieved {} total events", events.size());
+        return events;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<EventDto> getEventsByType(String eventType) {
+        log.debug("Fetching events by type='{}'", eventType);
+        List<Event> events = eventRepository.findByTypeIgnoreCase(eventType);
+        List<EventDto> dtos = events.stream().map(mapper::toDto).toList();
+        log.info("Retrieved {} events of type='{}'", dtos.size(), eventType);
+        return dtos;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<EventDto> getEventsByDate(String eventDate) {
+        LocalDate date = LocalDate.parse(eventDate); // expects ISO-8601 yyyy-MM-dd
+        LocalDateTime start = date.atStartOfDay();
+        LocalDateTime end = date.plusDays(1).atStartOfDay().minusNanos(1);
+
+        log.debug("Fetching events on date={}, between {} and {}", eventDate, start, end);
+        List<Event> events = eventRepository.findByStartAtBetween(start, end);
+        List<EventDto> dtos = events.stream().map(mapper::toDto).toList();
+
+        log.info("Retrieved {} events scheduled for {}", dtos.size(), eventDate);
+        return dtos;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<EventDto> getEventsByLocation(String eventLocation) {
+        log.debug("Fetching events by location containing '{}'", eventLocation);
+        List<Event> events = eventRepository.findByLocationContainingIgnoreCase(eventLocation);
+        List<EventDto> dtos = events.stream().map(mapper::toDto).toList();
+
+        log.info("Retrieved {} events matching location='{}'", dtos.size(), eventLocation);
+        return dtos;
+    }
+
+    //=========================
+    // Additional filtered queries
+    //=========================
+
+    //TODO: add more filtered queries as needed
     // Helpers
-    private Event load(Long id) {
-        return eventRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Event not found: " + id));
+    private Event load(Long eventId) {
+        return eventRepository.findById(eventId)
+                .orElseThrow(() -> new EntityNotFoundException("Event not found: " + eventId));
     }
 
     private Sort parseSort(String sort) {

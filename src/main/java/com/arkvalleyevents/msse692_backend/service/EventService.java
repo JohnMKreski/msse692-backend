@@ -9,32 +9,48 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
-
 public interface EventService {
-    //Create
-    CreateEventDto createEvent(CreateEventDto EventDetailDto);
 
-    //Read
-    EventDetailDto getEventById(Long eventId);
-    EventDetailDto getEventBySlug(String slug);
+    // =========================
+    // Commands (state changes)
+    // =========================
 
-    //List/Search
-    List<EventDto> listEvents(Map<String, String> filters, int page, int size, String sort);
-    List<EventDto> listUpcoming(LocalDateTime from, int limit);
+    /** Create a new event and return its detailed view. */
+    EventDetailDto createEvent(CreateEventDto input);
 
-    List<EventDto> getAllEvents();
-    List<EventDto> getEventsByType(String eventType);
-    List<EventDto> getEventsByDate(String eventDate);
-    List<EventDto> getEventsByLocation(String eventLocation);
+    /** Update an existing event and return its detailed view. */
+    EventDetailDto updateEvent(Long eventId, UpdateEventDto input);
 
-    //update
-    UpdateEventDto updateEvent(Long eventId, UpdateEventDto EventDetailDto);
-
-    // Status Changes
+    /** Publish/unpublish/cancel return the resulting detailed view. */
     EventDetailDto publishEvent(Long eventId);
     EventDetailDto unpublishEvent(Long eventId);
     EventDetailDto cancelEvent(Long eventId);
 
-    // Delete
+    /** Hard delete (or implement soft delete behind the scenes). */
     void deleteEvent(Long eventId);
+
+
+    // =========================
+    // Queries (no state change)
+    // =========================
+
+    /** Fetch one by id or slug with full detail. */
+    EventDetailDto getEventById(Long eventId);
+    EventDetailDto getEventBySlug(String slug);
+
+    /**
+     * General list/search endpoint:
+     * - filters: free-form map (e.g., type, dateFrom, dateTo, location, status)
+     * - page/size/sort: simple paging if you’re not using Pageable
+     */
+    List<EventDto> listEvents(Map<String, String> filters, int page, int size, String sort);
+
+    /** Lightweight helper for “what’s coming up from time X” with a hard cap. */
+    List<EventDto> listUpcoming(LocalDateTime from, int limit);
+
+    /** Optional convenience queries (can be folded into listEvents via filters). */
+    List<EventDto> getAllEvents();
+    List<EventDto> getEventsByType(String eventType);
+    List<EventDto> getEventsByDate(String eventDate);
+    List<EventDto> getEventsByLocation(String eventLocation);
 }

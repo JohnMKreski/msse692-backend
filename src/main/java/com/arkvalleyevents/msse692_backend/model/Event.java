@@ -51,6 +51,12 @@ public class Event {
 
     private String eventDescription;
 
+    @Enumerated(EnumType.STRING)  // Store enum as readable text in DB
+    @Column(nullable = false)
+    private EventStatus status = EventStatus.DRAFT;  // default state
+
+
+
     //========== Relationships ==========
     //Found on google, could be good reference
 
@@ -94,15 +100,6 @@ public class Event {
     @Column(name = "image_url")
     private Set<String> imageUrls = new HashSet<>();
 
-
-
-    //TODO: Add relationship with User for event creator/organizer
-    public void setStatus(Object status) {
-    }
-
-    //TODO: Change to enum for DRAFT, PUBLISHED, CANCELLED
-    public void getStatus(Object status) {
-    }
 
 
     //Defined as bean

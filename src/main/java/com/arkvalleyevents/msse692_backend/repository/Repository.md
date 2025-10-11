@@ -1,0 +1,1 @@
+Repository: data access layer backed by Spring Data JPA. It loads, queries, saves, and deletes Event entities, hiding SQL and pagination details.

@@ -23,4 +23,19 @@ public interface EventRepository extends JpaRepository<Event, Long>, JpaSpecific
     List<Event> findByStartAtBetween(LocalDateTime start, LocalDateTime end);
 
     List<Event> findByLocationContainingIgnoreCase(String location);
+//
+//    // Detail lookups
+//    Optional<Event> findBySlug(String slug); // unique index recommended
+//
+//    // Paging list (with dynamic filters via Specification; see below)
+//    Page<Event> findAll(Specification<Event> spec, Pageable pageable);
+//
+//    // “Upcoming” (usually only PUBLISHED)
+//    Page<Event> findByStatusAndStartAtGreaterThanEqualOrderByStartAtAsc(
+//            EventStatus status, LocalDateTime from, Pageable pageable);
+//
+//    // Convenience finders used by your service
+//    List<Event> findByTypeIgnoreCase(String type);
+//    List<Event> findByStartAtBetween(LocalDateTime start, LocalDateTime end);
+//    List<Event> findByLocationContainingIgnoreCase(String location);
 }
