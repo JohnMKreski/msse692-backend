@@ -18,7 +18,7 @@ import java.util.Set;
 public class Artist {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private Long artistId;
 
     @NotBlank
     private String name;
