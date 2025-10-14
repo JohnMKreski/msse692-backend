@@ -31,8 +31,8 @@ public class EventDto {
 //    private String eventDescription; TODO: Consider adding a short description field for listing views
 
     // Flattened relationships
-    private String venueName;
-    private Set<String> artistNames;
+//    private String venueName;
+//    private Set<String> artistNames;
 
     // Supporting data
 //    private Set<String> imageUrls; TODO: or Hero Image URL (first of imageUrls)

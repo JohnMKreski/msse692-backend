@@ -9,6 +9,7 @@ import com.arkvalleyevents.msse692_backend.service.EventService;
 
 import jakarta.persistence.EntityNotFoundException;
 
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -25,14 +26,10 @@ import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-// Import your model and repository
-// Adjust package names to match your project.
 import com.arkvalleyevents.msse692_backend.model.Event;
 import com.arkvalleyevents.msse692_backend.model.EventStatus;
 import com.arkvalleyevents.msse692_backend.repository.EventRepository;
 
-// A mapper component you provide (MapStruct/ModelMapper/manual).
-// Define with methods: toEntity(CreateEventDto), toDetailDto(Event), toDto(Event), updateEntity(UpdateEventDto, Event).
 import com.arkvalleyevents.msse692_backend.service.mapping.EventMapper;
 
 @Service
@@ -44,7 +41,7 @@ public class EventServiceImpl implements EventService {
     private final EventRepository eventRepository;
     private final EventMapper mapper;
 
-    public EventServiceImpl(EventRepository eventRepository, EventMapper mapper) {
+    public EventServiceImpl(EventRepository eventRepository, @Qualifier("eventMapperImpl") EventMapper mapper) {
         this.eventRepository = eventRepository;
         this.mapper = mapper;
     }

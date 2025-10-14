@@ -37,11 +37,11 @@ public class EventDetailDto {
     private String eventDescription;
 
     // Nested DTOs instead of entity references
-    private VenueDto venue;
-    private Set<ArtistDto> artists;
-
-    // Supporting data
-    private Set<String> imageUrls;
+//    private VenueDto venue;
+//    private Set<ArtistDto> artists;
+//
+//    // Supporting data
+//    private Set<String> imageUrls;
 
     private Instant createdAt;
     private Instant updatedAt;

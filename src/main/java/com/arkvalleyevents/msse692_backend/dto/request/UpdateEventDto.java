@@ -21,7 +21,7 @@ public class UpdateEventDto {
     private String eventLocation;
     private String eventDescription;
 
-    private Long venueId;
-    private Set<Long> artistIds;
-    private Set<String> imageUrls;
+//    private Long venueId;
+//    private Set<Long> artistIds;
+//    private Set<String> imageUrls;
 }

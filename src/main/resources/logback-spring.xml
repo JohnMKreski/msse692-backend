@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration scan="true" scanPeriod="30 seconds">
 
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+
     <!-- ========= LOG PATTERN ========= -->
     <property name="LOG_PATTERN" value="%clr(%d{yyyy-MM-dd HH:mm:ss.SSS}){faint} %clr(%-5level) %clr([%15.15t]){faint} %clr(%-40.40logger{36}){cyan} - %clr(%msg){white}%n"/>
 

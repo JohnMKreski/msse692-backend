@@ -21,9 +21,9 @@ public class CreateEventDto {
     private String eventDescription;
 
     // References by ID instead of embedding full objects
-    private Long venueId;
-    private Set<Long> artistIds;
-
-    // Image URLs
-    private Set<String> imageUrls;
+//    private Long venueId;
+//    private Set<Long> artistIds;
+//
+//    // Image URLs
+//    private Set<String> imageUrls;
 }
