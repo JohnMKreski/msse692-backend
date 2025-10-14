@@ -1,6 +1,9 @@
 package com.arkvalleyevents.msse692_backend.repository;
 
 import com.arkvalleyevents.msse692_backend.model.Event;
+import com.arkvalleyevents.msse692_backend.model.EventStatus;
+import com.arkvalleyevents.msse692_backend.model.EventType;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -16,13 +19,19 @@ public interface EventRepository extends JpaRepository<Event, Long>, JpaSpecific
 
     Optional<Event> findBySlug(String slug);
 
-    List<Event> findByStartAtAfter(LocalDateTime from, Pageable pageable);
+    Page<Event> findByStartAtAfter(LocalDateTime from, Pageable pageable);
 
-    List<Event> findByTypeIgnoreCase(String type);
+    List<Event> findByEventType(EventType eventType);
 
-    List<Event> findByStartAtBetween(LocalDateTime start, LocalDateTime end);
+    List<Event> findByStartAtBetween(LocalDateTime startAt, LocalDateTime endAt);
 
-    List<Event> findByLocationContainingIgnoreCase(String location);
+    List<Event> findByEventLocationContainingIgnoreCase(String eventLocation);
+
+    Page<Event> findByStatusAndStartAtGreaterThanEqualOrderByStartAtAsc(
+            EventStatus status, LocalDateTime from, Pageable pageable
+    );
+
+    boolean existsBySlug(String slug);
 //
 //    // Detail lookups
 //    Optional<Event> findBySlug(String slug); // unique index recommended

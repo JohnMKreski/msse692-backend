@@ -4,10 +4,13 @@ import com.arkvalleyevents.msse692_backend.dto.request.CreateEventDto;
 import com.arkvalleyevents.msse692_backend.dto.request.UpdateEventDto;
 import com.arkvalleyevents.msse692_backend.dto.response.EventDto;
 import com.arkvalleyevents.msse692_backend.dto.response.EventDetailDto;
+import com.arkvalleyevents.msse692_backend.model.EventType;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 public interface EventService {
 
@@ -35,7 +38,7 @@ public interface EventService {
     // =========================
 
     /** Fetch one by id or slug with full detail. */
-    EventDetailDto getEventById(Long eventId);
+    Optional<EventDetailDto> getEventById(Long eventId);
     EventDetailDto getEventBySlug(String slug);
 
     /**
@@ -50,7 +53,7 @@ public interface EventService {
 
     /** Optional convenience queries (can be folded into listEvents via filters). */
     List<EventDto> getAllEvents();
-    List<EventDto> getEventsByType(String eventType);
-    List<EventDto> getEventsByDate(String eventDate);
+    List<EventDto> getEventsByType(EventType eventType);
+    List<EventDto> getEventsByDate(LocalDate date);
     List<EventDto> getEventsByLocation(String eventLocation);
 }

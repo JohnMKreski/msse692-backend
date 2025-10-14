@@ -4,6 +4,7 @@ import com.arkvalleyevents.msse692_backend.dto.request.CreateEventDto;
 import com.arkvalleyevents.msse692_backend.dto.request.UpdateEventDto;
 import com.arkvalleyevents.msse692_backend.dto.response.EventDetailDto;
 import com.arkvalleyevents.msse692_backend.dto.response.EventDto;
+import com.arkvalleyevents.msse692_backend.model.EventType;
 import com.arkvalleyevents.msse692_backend.service.EventService;
 
 import jakarta.persistence.EntityNotFoundException;
@@ -19,6 +20,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -57,7 +59,12 @@ public class EventServiceImpl implements EventService {
         log.info("Creating new event: {}", input.getEventName());
         Event entity = mapper.toEntity(input);
         // status already defaults to DRAFT in the entity
-        // entity.setStatus(EventStatus.DRAFT);
+        // entity.setStatus(EventStatus.DRAFT);\
+
+        // Generate slug from eventName (Entity(Modal))
+        String baseSlug = slugify(input.getEventName());
+        String uniqueSlug = ensureUniqueSlug(baseSlug);
+        entity.setSlug(uniqueSlug);
 
         Event saved = eventRepository.save(entity);
         log.info("Event created successfully with ID={} and status={}", saved.getEventId(), saved.getStatus());
@@ -68,11 +75,12 @@ public class EventServiceImpl implements EventService {
     @Override
     public EventDetailDto updateEvent(Long eventId, UpdateEventDto request) {
         log.debug("Attempting to publish event with ID={}", eventId);
-        Event event = eventRepository.findById(eventId)
+        Event existing = eventRepository.findById(eventId)
                 .orElseThrow(() -> new EntityNotFoundException("Event not found: " + eventId));
-        mapper.updateEntity(request, event); // partial update (non‑nulls)
+        // Update the event entity with non-null fields from the request DTO
+        mapper.updateEntity(existing, request); // partial update (non‑nulls)
 
-        Event saved = eventRepository.save(event);
+        Event saved = eventRepository.save(existing);
         log.info("Event ID={} published successfully.", eventId);
         return mapper.toDetailDto(saved);
     }
@@ -149,12 +157,13 @@ public class EventServiceImpl implements EventService {
 
     @Override
     @Transactional(readOnly = true)
-    public EventDetailDto getEventById(Long eventId) {
+    public Optional<EventDetailDto> getEventById(Long eventId) {
         log.debug("Fetching event by ID={}", eventId);
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new EntityNotFoundException("Event not found: " + eventId));
         log.info("Event retrieved successfully (ID={}, status={})", event.getEventId(), event.getStatus());
-        return mapper.toDetailDto(event);
+//        return mapper.toDetailDto(event);
+        return eventRepository.findById(eventId).map(mapper::toDetailDto);
     }
 
     @Override
@@ -186,8 +195,8 @@ public class EventServiceImpl implements EventService {
         Pageable pageable = PageRequest.of(0, Math.max(limit, 1), Sort.by(Sort.Direction.ASC, "startAt"));
         log.debug("Listing upcoming events starting after {} (limit={})", from, limit);
 
-        List<Event> events = eventRepository.findByStartAtAfter(from, pageable);
-        List<EventDto> dtos = events.stream().map(mapper::toDto).toList();
+        Page<Event> events = eventRepository.findByStartAtAfter(from, pageable);
+        List<EventDto> dtos = events.getContent().stream().map(mapper::toDto).toList();
 
         log.info("Retrieved {} upcoming events (after={})", dtos.size(), from);
         return dtos;
@@ -204,39 +213,62 @@ public class EventServiceImpl implements EventService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<EventDto> getEventsByType(String eventType) {
+    public List<EventDto> getEventsByType(EventType eventType) {
         log.debug("Fetching events by type='{}'", eventType);
-        List<Event> events = eventRepository.findByTypeIgnoreCase(eventType);
+        List<Event> events = eventRepository.findByEventType(eventType);
         List<EventDto> dtos = events.stream().map(mapper::toDto).toList();
         log.info("Retrieved {} events of type='{}'", dtos.size(), eventType);
         return dtos;
     }
 
+//    @Override
+//    @Transactional(readOnly = true)
+//    public List<EventDto> getEventsByDate(String eventDate) {
+//        LocalDate date = LocalDate.parse(eventDate); // expects ISO-8601 yyyy-MM-dd
+//        LocalDateTime start = date.atStartOfDay();
+//        LocalDateTime end = date.plusDays(1).atStartOfDay().minusNanos(1);
+//
+//        log.debug("Fetching events on date={}, between {} and {}", eventDate, start, end);
+//        List<Event> events = eventRepository.findByStartAtBetween(start, end);
+//        List<EventDto> dtos = events.stream().map(mapper::toDto).toList();
+//
+//        log.info("Retrieved {} events scheduled for {}", dtos.size(), eventDate);
+//        return dtos;
+//    }
+
     @Override
     @Transactional(readOnly = true)
-    public List<EventDto> getEventsByDate(String eventDate) {
-        LocalDate date = LocalDate.parse(eventDate); // expects ISO-8601 yyyy-MM-dd
-        LocalDateTime start = date.atStartOfDay();
-        LocalDateTime end = date.plusDays(1).atStartOfDay().minusNanos(1);
+    public List<EventDto> getEventsByDate(LocalDate date) {
+        LocalDateTime startAt  = date.atStartOfDay();
+        LocalDateTime endAt  = date.plusDays(1).atStartOfDay().minusNanos(1);
 
-        log.debug("Fetching events on date={}, between {} and {}", eventDate, start, end);
-        List<Event> events = eventRepository.findByStartAtBetween(start, end);
+        log.debug("Fetching events occurring on {} ({} to {})", date, startAt , endAt );
+
+        List<Event> events = eventRepository.findByStartAtBetween(startAt , endAt );
         List<EventDto> dtos = events.stream().map(mapper::toDto).toList();
 
-        log.info("Retrieved {} events scheduled for {}", dtos.size(), eventDate);
+        log.info("Retrieved {} events on {}", dtos.size(), date);
         return dtos;
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<EventDto> getEventsByLocation(String eventLocation) {
-        log.debug("Fetching events by location containing '{}'", eventLocation);
-        List<Event> events = eventRepository.findByLocationContainingIgnoreCase(eventLocation);
+    public List<EventDto> getEventsByLocation(String location) {
+        log.debug("Fetching events by location containing '{}'", location);
+        List<Event> events = eventRepository.findByEventLocationContainingIgnoreCase(location);
         List<EventDto> dtos = events.stream().map(mapper::toDto).toList();
 
-        log.info("Retrieved {} events matching location='{}'", dtos.size(), eventLocation);
+        log.info("Retrieved {} events matching location='{}'", dtos.size(), location);
         return dtos;
     }
+
+//    public Page<Event> getUpcomingEventsByStatus(EventStatus status, LocalDateTime from, Pageable pageable) {
+//        return eventRepository.findByStatusAndStartAtGreaterThanEqualOrderByStartAtAsc(status, from, pageable);
+//    }
+//
+//    public boolean eventSlugExists(String slug) {
+//        return eventRepository.existsBySlug(slug);
+//    }
 
     //=========================
     // Additional filtered queries
@@ -265,4 +297,27 @@ public class EventServiceImpl implements EventService {
         }
         return Sort.by(Sort.Direction.ASC, s);
     }
+
+    // =========================
+    // Slug generation helpers
+    // =========================
+
+    private String slugify(String title) {
+        if (title == null || title.isBlank()) return null;
+        return title
+                .trim()
+                .toLowerCase()
+                .replaceAll("[^a-z0-9\\s-]", "") // remove special chars
+                .replaceAll("\\s+", "-");        // replace spaces with hyphens
+    }
+
+    private String ensureUniqueSlug(String baseSlug) {
+        String slug = baseSlug;
+        int counter = 1;
+        while (eventRepository.findBySlug(slug).isPresent()) {
+            slug = baseSlug + "-" + counter++;
+        }
+        return slug;
+    }
+
 }

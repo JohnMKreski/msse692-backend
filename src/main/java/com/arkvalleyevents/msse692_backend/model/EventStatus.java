@@ -1,25 +1,24 @@
 package com.arkvalleyevents.msse692_backend.model;
 
+import lombok.Getter;
+
+@Getter
 public enum EventStatus {
     DRAFT("Draft"),
     PUBLISHED("Published"),
     UNPUBLISHED("Unpublished"),
     CANCELLED("Cancelled");;
 
-    private final String displayName;
+    private final String statusDisplayName;
 
-    EventStatus(String displayName) {
-        this.displayName = displayName;
-    }
-
-    public String getDisplayName() {
-        return displayName;
+    EventStatus(String statusDisplayName) {
+        this.statusDisplayName = statusDisplayName;
     }
 
     //Helpful for logging
     @Override
     public String toString() {
-        return displayName;
+        return statusDisplayName;
     }
 
     public static EventStatus fromString(String s) {
