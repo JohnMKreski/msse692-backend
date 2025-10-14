@@ -1,0 +1,1 @@
+Mapper: conversion layer (e.g., MapStruct) that translates between API DTOs and the JPA Event entity, and applies partial updates without manual field copying.

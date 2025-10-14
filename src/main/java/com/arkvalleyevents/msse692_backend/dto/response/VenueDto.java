@@ -6,7 +6,7 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 public class VenueDto {
-    private Long id;
+    private Long venueId;
     private String name;
     private String address;
     private Integer capacity;

@@ -1,16 +1,15 @@
 package com.arkvalleyevents.msse692_backend.model;
 
-import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
-import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.ToString;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.LastModifiedDate;
 
-import java.time.LocalDate;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.HashSet;
@@ -21,35 +20,50 @@ import java.util.Set;
 @Data
 @NoArgsConstructor
 public class Event {
-    @Override
-    public String toString() {
-        return String.format(
-                "Event[eventType='%s', eventName='%s', eventDate='%s', eventTime='%s', eventLocation='%s', eventDescription='%s']",
-                eventType, eventName, eventDate, eventTime, eventLocation, eventDescription);
-    }
 
     //========== Fields ==========
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private Long eventId;
 
-    private String eventType;
+    @Column(unique = true, nullable = false, length = 255)
+    private String slug; // URL-friendly unique identifier, e.g., "summer-music-fest-2023"
 
     @NotBlank
+    @Column(length = 255)
     private String eventName;
 
-    @NotNull
-    private LocalDate eventDate;
+    @Enumerated(EnumType.STRING)  // Store enum as readable text in DB
+    private EventType eventType;
 
     @NotNull
-    private LocalTime eventTime;
+    private LocalDateTime startAt;
 
     @NotNull
-    private LocalDateTime eventDateTime; //Combine date and time?
+    private LocalDateTime endAt;
 
     private String eventLocation; //Needed with Venue entity? Venue has venue.getAddress() Will keep for events that's dont have a "venue" (e.g., woodsy)
 
+    //@Lob is an annotation used to specify that a field should be persisted as a Large Object. It is typically used for fields that may store large amounts of data.
+    @Lob
     private String eventDescription;
+
+    @Enumerated(EnumType.STRING)  // Store enum as readable text in DB
+    @Column(nullable = false)
+    private EventStatus status = EventStatus.DRAFT;  // default state
+
+    // Auditing & concurrency
+    @CreatedDate
+    @Column(updatable = false)
+    private Instant createdAt;
+
+    @LastModifiedDate
+    private Instant updatedAt;
+
+    @Version
+    private Long version;
+
+
 
     //========== Relationships ==========
     //Found on google, could be good reference
@@ -93,36 +107,5 @@ public class Event {
     @CollectionTable(name = "event_image_urls", joinColumns = @JoinColumn(name = "event_id"))
     @Column(name = "image_url")
     private Set<String> imageUrls = new HashSet<>();
-
-
-    //Defined as bean
-//    //========== Constructors ==========
-//    public Event() {
-//        logger.info("Event default constructor called");
-//    }
-
-    //========== Getters and Setters ==========
-    // Lombok @Data generates these automatically
-
-//    public String getEventType() {
-//        return eventType;
-//    }
-//    public void setEventType(String eventType) {
-//        this.eventType = eventType;
-//    }
-//    public String getEventName() { return eventName; }
-//    public void setEventName(String eventName) { this.eventName = eventName; }
-//    public String getEventDate() { return eventDate; }
-//    public void setEventDate(String eventDate) { this.eventDate = eventDate; }
-//    public String getEventTime() { return eventTime; }
-//    public void setEventTime(String eventTime) { this.eventTime = eventTime; }
-//    public String getEventLocation() { return eventLocation; }
-//    public void setEventLocation(String eventLocation) { this.eventLocation = eventLocation; }
-//    public String getEventDescription() { return eventDescription; }
-//    public void setEventDescription(String eventDescription) { this.eventDescription = eventDescription; }
-
-
-    //========== Other Methods ==========
-
 
 }

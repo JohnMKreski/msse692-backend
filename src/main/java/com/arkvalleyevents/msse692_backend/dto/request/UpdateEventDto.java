@@ -1,5 +1,6 @@
 package com.arkvalleyevents.msse692_backend.dto.request;
 
+import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import java.time.LocalDate;
@@ -10,15 +11,17 @@ import java.util.Set;
 @Data
 @NoArgsConstructor
 public class UpdateEventDto {
-    private String eventType;
+
     private String eventName;
-    private LocalDate eventDate;
-    private LocalTime eventTime;
-    private LocalDateTime eventDateTime;
+    private String typeDisplayName;
+
+    private LocalDateTime startAt;
+    private LocalDateTime endAt;
+
     private String eventLocation;
     private String eventDescription;
 
-    private Long venueId;
-    private Set<Long> artistIds;
-    private Set<String> imageUrls;
+//    private Long venueId;
+//    private Set<Long> artistIds;
+//    private Set<String> imageUrls;
 }

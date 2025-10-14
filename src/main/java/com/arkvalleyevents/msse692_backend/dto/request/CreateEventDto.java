@@ -12,29 +12,18 @@ import java.util.Set;
 @Data
 @NoArgsConstructor
 public class CreateEventDto {
-    @NotBlank
-    private String eventType;
 
-    @NotBlank
     private String eventName;
-
-    @NotNull
-    private LocalDate eventDate;
-
-    @NotNull
-    private LocalTime eventTime;
-
-    private LocalDateTime eventDateTime;
-
-    @NotBlank
+    private String typeDisplayName;
+    private LocalDateTime startAt;
+    private LocalDateTime endAt;
     private String eventLocation;
-
     private String eventDescription;
 
     // References by ID instead of embedding full objects
-    private Long venueId;
-    private Set<Long> artistIds;
-
-    // Image URLs
-    private Set<String> imageUrls;
+//    private Long venueId;
+//    private Set<Long> artistIds;
+//
+//    // Image URLs
+//    private Set<String> imageUrls;
 }
