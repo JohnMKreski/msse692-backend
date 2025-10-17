@@ -1,5 +1,6 @@
 package com.arkvalleyevents.msse692_backend.dto.request;
 
+import com.arkvalleyevents.msse692_backend.model.EventType;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import jakarta.validation.constraints.NotBlank;
@@ -14,7 +15,7 @@ import java.util.Set;
 public class CreateEventDto {
 
     private String eventName;
-    private String typeDisplayName;
+    private EventType type;
     private LocalDateTime startAt;
     private LocalDateTime endAt;
     private String eventLocation;

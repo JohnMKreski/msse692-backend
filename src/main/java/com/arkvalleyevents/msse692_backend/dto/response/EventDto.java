@@ -18,7 +18,7 @@ public class EventDto {
     private String slug;
     private String eventName;
 
-    private EventType eventType;
+    private EventType type;
     private String typeDisplayName; // Computed field for UI display
 
     private LocalDateTime startAt;

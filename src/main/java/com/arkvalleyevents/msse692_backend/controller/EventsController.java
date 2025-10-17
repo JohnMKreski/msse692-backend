@@ -3,7 +3,10 @@ package com.arkvalleyevents.msse692_backend.controller;
 import com.arkvalleyevents.msse692_backend.dto.request.CreateEventDto;
 import com.arkvalleyevents.msse692_backend.dto.request.UpdateEventDto;
 import com.arkvalleyevents.msse692_backend.dto.response.EventDetailDto;
+import com.arkvalleyevents.msse692_backend.dto.response.EventDto;
 import com.arkvalleyevents.msse692_backend.service.EventService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
@@ -14,6 +17,9 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @RestController
@@ -78,6 +84,22 @@ public class EventsController {
         log.info("DELETE /api/events/{}", eventId);
         eventService.deleteEvent(eventId);
         return ResponseEntity.noContent().build(); // 204 No Content
+    }
+
+    @Operation(summary = "List events", description = "Supports paging, sorting, and arbitrary query-string filters.")
+    @GetMapping
+    public List<EventDto> listEvents(
+            @RequestParam(name = "page", required = false, defaultValue = "0") int page,
+            @RequestParam(name = "size", required = false, defaultValue = "20") int size,
+            @RequestParam(name = "sort", required = false) String sort,
+            @Parameter(hidden = true) @RequestParam Map<String, String> requestParams
+    ) {
+        Map<String, String> filters = new HashMap<>(requestParams);
+        filters.remove("page");
+        filters.remove("size");
+        filters.remove("sort");
+
+        return eventService.listEvents(filters, Math.max(page, 0), Math.max(size, 1), sort);
     }
 
 }

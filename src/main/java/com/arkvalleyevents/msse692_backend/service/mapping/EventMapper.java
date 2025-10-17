@@ -26,7 +26,7 @@ public interface EventMapper {
     @Mapping(target = "status", ignore = true)
     // Set in service impl
     @Mapping(target = "slug", ignore = true)
-    @Mapping(target = "eventType", ignore = true)
+//    @Mapping(target = "eventType", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "version", ignore = true)

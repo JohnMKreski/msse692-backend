@@ -1,5 +1,7 @@
 package com.arkvalleyevents.msse692_backend.model;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonValue;
 import lombok.Getter;
 
 @Getter
@@ -21,6 +23,12 @@ public enum EventType {
         return typeDisplayName;
     }
 
+    @JsonValue
+    public String getDisplayName() {
+        return typeDisplayName;
+    }
+
+    @JsonCreator
     public static com.arkvalleyevents.msse692_backend.model.EventType fromString(String s) {
         if (s == null) return null;
         return switch (s.trim().toUpperCase()) {

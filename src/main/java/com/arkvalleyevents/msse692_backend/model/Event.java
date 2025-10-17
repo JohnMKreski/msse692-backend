@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 import lombok.ToString;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -19,6 +20,7 @@ import java.util.Set;
 //Data annotation generates getters, setters, toString, equals, and hashCode methods
 @Data
 @NoArgsConstructor
+@EntityListeners(AuditingEntityListener.class)
 public class Event {
 
     //========== Fields ==========
@@ -54,10 +56,11 @@ public class Event {
 
     // Auditing & concurrency
     @CreatedDate
-    @Column(updatable = false)
+    @Column(nullable = false, updatable = false)
     private Instant createdAt;
 
     @LastModifiedDate
+    @Column(nullable = false)
     private Instant updatedAt;
 
     @Version
