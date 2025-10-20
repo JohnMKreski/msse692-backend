@@ -6,7 +6,6 @@ import com.arkvalleyevents.msse692_backend.dto.response.EventDetailDto;
 import com.arkvalleyevents.msse692_backend.dto.response.EventDto;
 import com.arkvalleyevents.msse692_backend.model.Event;
 import org.mapstruct.*;
-import org.springframework.beans.factory.annotation.Qualifier;
 
 @Mapper(
         componentModel = "spring",
@@ -27,6 +26,7 @@ public interface EventMapper {
     // Set in service impl
     @Mapping(target = "slug", ignore = true)
 //    @Mapping(target = "eventType", ignore = true)
+        @Mapping(target = "eventType", source = "type")
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "version", ignore = true)
@@ -41,7 +41,7 @@ public interface EventMapper {
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     @Mapping(target = "eventId", ignore = true)
     @Mapping(target = "slug", ignore = true)
-    @Mapping(target = "eventType", ignore = true)
+        @Mapping(target = "eventType", source = "type")
     @Mapping(target = "status", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
@@ -52,6 +52,7 @@ public interface EventMapper {
 
     // ---------- To summary DTO ----------
     @Mappings({
+            @Mapping(target = "type", source = "eventType"),
             @Mapping(target = "typeDisplayName",
                     expression = "java(src.getEventType() != null ? src.getEventType().getTypeDisplayName() : null)"),
             @Mapping(target = "statusDisplayName",
@@ -62,8 +63,9 @@ public interface EventMapper {
     })
     EventDto toDto(Event src);
 
-    // ---------- To detail DTO ----------
-    @Mappings({
+         // ---------- To detail DTO ----------
+        @Mappings({
+            @Mapping(target = "type", source = "eventType"),
             @Mapping(target = "typeDisplayName",
                     expression = "java(src.getEventType() != null ? src.getEventType().getTypeDisplayName() : null)"),
             @Mapping(target = "statusDisplayName",
