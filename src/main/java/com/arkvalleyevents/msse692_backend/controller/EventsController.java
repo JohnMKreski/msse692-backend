@@ -7,11 +7,11 @@ import com.arkvalleyevents.msse692_backend.dto.response.EventDto;
 import com.arkvalleyevents.msse692_backend.service.EventService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
@@ -37,10 +37,11 @@ public class EventsController {
         log.info("EventsController initialized");
     }
 
-    private HttpServletRequest request;
+    // private HttpServletRequest request; // unused
 
     //Post /api/events
     @PostMapping
+    @PreAuthorize("hasAnyRole('ADMIN','EDITOR')")
     public ResponseEntity<EventDetailDto> createEvent(@RequestBody @Valid CreateEventDto dto) {
         log.info("POST /api/events called");
         EventDetailDto created = eventService.createEvent(dto);
@@ -72,6 +73,7 @@ public class EventsController {
 
     //Put /api/events/{id}
     @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN','EDITOR')")
     public ResponseEntity<EventDetailDto> updateEvent(@PathVariable("id") Long eventId, @RequestBody @Valid UpdateEventDto dto) {
         log.info("PUT /api/events/{}", eventId);
         EventDetailDto updated = eventService.updateEvent(eventId, dto);
@@ -80,6 +82,7 @@ public class EventsController {
 
     //Delete /api/events/{id}
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deleteEvent(@PathVariable("id") Long eventId) {
         log.info("DELETE /api/events/{}", eventId);
         eventService.deleteEvent(eventId);

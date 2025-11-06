@@ -82,3 +82,16 @@
 * [ ] Extend repository slice tests for `findByEventType` and `findByStartAtBetween`.
 
 
+--- 
+
+11/05/2025
+
+• SQL: Connected local Postgres (env vars), enabled Flyway; added V2 migration for app_users and app_user_roles; verified tables and seeded roles via psql; added psql-cheatsheet.md.
+• Firebase: Configured Spring Security OAuth2 Resource Server with Firebase issuer/audience; Angular interceptor sends ID token; added /api/auth/whoami to inspect claims.
+• User: Created AppUser entity/repo and upsert filter to create/update user on first authenticated request; roles resolved from JWT or DB (default USER).
+• User controller: Added admin-only endpoints to manage roles:
+    - GET /api/admin/users/{uid}/roles
+    - POST /api/admin/users/{uid}/roles (add roles)
+    - DELETE /api/admin/users/{uid}/roles/{role}
+    Protected by ROLE_ADMIN.
+• Security: Public GETs for /api/events/** and /api/enums/**; write endpoints guarded (ADMIN/EDITOR for create/update, ADMIN for delete).

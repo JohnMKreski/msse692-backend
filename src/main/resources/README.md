@@ -3,8 +3,11 @@
 This backend defines three Spring profiles to support local development and production:
 
 - dev (default): in-memory H2 for fast UI/backend development; data resets on restart.
+- - mvn spring-boot:run -Dspring-boot.run.profiles=dev
 - local: PostgreSQL with Flyway migrations for day-to-day database development locally.
+- - mvn spring-boot:run -Dspring-boot.run.profiles=local
 - prod: PostgreSQL with Flyway migrations and production-safe settings.
+- - mvn spring-boot:run -Dspring-boot.run.profiles=prod
 
 ## Environment variables (PostgreSQL profiles)
 
