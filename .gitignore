@@ -42,6 +42,7 @@ build/
 *.db
 *.sqlite
 *.h2.db
+/src/main/resources/db/Users.md
 
 ### Environment ###
 .env

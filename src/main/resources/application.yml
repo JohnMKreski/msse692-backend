@@ -29,17 +29,66 @@ spring:
     activate:
       on-profile: prod
   datasource:
-    url: ${DB_URL}         # e.g. jdbc:postgresql://host:5432/arkve
+    url: ${DB_URL}
     username: ${DB_USER}
     password: ${DB_PASS}
   jpa:
-    hibernate.ddl-auto: validate
+    hibernate.ddl-auto: validate #JPA checks but doesn’t mutate schema
     properties.hibernate.jdbc.lob.non_contextual_creation: true
+  flyway:
+    enabled: true
+    # Baseline existing schema so Flyway starts at version 1 without trying to create existing tables
+    baseline-on-migrate: true
+    baseline-version: 1
+    locations: classpath:db/migration
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: https://securetoken.google.com/${FIREBASE_PROJECT_ID}
+app:
+  security:
+    firebase:
+      audience: ${FIREBASE_PROJECT_ID}
 management:
   endpoints.web.exposure.include: health,info
 logging:
   file:
     name: logs/ave-app.log
+  level:
+    root: INFO
+    org.springframework.web: DEBUG
+
+---
+spring:
+  config:
+    activate:
+      on-profile: local
+  datasource:
+    # Uses local PostgreSQL via environment variables (DB_URL, DB_USER, DB_PASS)
+    url: ${DB_URL}
+    username: ${DB_USER}
+    password: ${DB_PASS}
+  jpa:
+    # Schema owned by Flyway; JPA validates only
+    hibernate.ddl-auto: validate
+    properties.hibernate.jdbc.lob.non_contextual_creation: true
+  flyway:
+    enabled: true
+    # Accept existing schema as baseline (same as prod)
+    baseline-on-migrate: true
+    baseline-version: 1
+    locations: classpath:db/migration
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: https://securetoken.google.com/${FIREBASE_PROJECT_ID}
+app:
+  security:
+    firebase:
+      audience: ${FIREBASE_PROJECT_ID}
+logging:
   level:
     root: INFO
     org.springframework.web: DEBUG

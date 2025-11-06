@@ -1,5 +1,6 @@
 package com.arkvalleyevents.msse692_backend.dto.request;
 
+import com.arkvalleyevents.msse692_backend.model.EventType;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -13,7 +14,7 @@ import java.util.Set;
 public class UpdateEventDto {
 
     private String eventName;
-    private String typeDisplayName;
+    private EventType type;
 
     private LocalDateTime startAt;
     private LocalDateTime endAt;
