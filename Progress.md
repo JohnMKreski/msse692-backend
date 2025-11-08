@@ -95,3 +95,19 @@
     - DELETE /api/admin/users/{uid}/roles/{role}
     Protected by ROLE_ADMIN.
 • Security: Public GETs for /api/events/** and /api/enums/**; write endpoints guarded (ADMIN/EDITOR for create/update, ADMIN for delete).
+
+
+11/07/2025
+
+• Frontend Profile Page: Structured into explicit sections (Firebase info JSON, Backend AppUser JSON, Profile data, My Events filtered by createdByUserId, All Events dev visibility, Admin-only Event Audits).
+• Firebase Transparency: Displayed all user fields including nulls; token claims surfaced; roles fallback to backend AppUser when missing in JWT.
+• Event Ownership: Added createdByUserId and lastModifiedByUserId via JPA auditing annotations (@CreatedBy/@LastModifiedBy) on `Event`; exposed in `EventDto` and `EventDetailDto`.
+• Auditing Infrastructure: Implemented `event_audit` table + `EventAuditService` with logCreate/logUpdate/logDelete; added GET /api/events/{id}/audits endpoint and Angular service + UI section (admin-only) showing recent actions with relative times.
+• Frontend Enhancements: Added event normalization (id/title/start/end/location) and filtering logic; replaced heavy inline CRUD form with placeholder button + toast (event management to move to dedicated page).
+• Security & Profiles: Kept Flyway enabled for local/prod (PostgreSQL) and disabled Flyway in dev/test (H2) to avoid TIMESTAMPTZ/BIGSERIAL incompatibility; dev relies on Hibernate `ddl-auto=update`.
+• StackOverflowError Fix (PUT /api/events): Eliminated recursive auditing by removing Lombok @Data on `Event` (granular annotations only) and introducing ThreadLocal `CurrentAuditor`; refactored `AuditorAware` to use ThreadLocal instead of repository lookup during flush.
+• Tests Stabilization: Adjusted test profile (`application-test.yml`) to disable Flyway; updated `ProfileIntegrationTest` to use `test` profile with Hibernate schema; cleaned unused injections/imports.
+• Logging Refinement: Corrected misleading publish/update log messages; ensured event update logs status without triggering recursion.
+• Misc: Normalized event selection for audits (fallback to all events if user has none) and ensured selectedEventId initializes promptly to load audits.
+• Result: CRUD (create, list, update, delete) and auditing fully operational across dev/local; PUT works with ADMIN token; no further StackOverflow errors observed.
+

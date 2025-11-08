@@ -4,7 +4,6 @@ import com.arkvalleyevents.msse692_backend.dto.request.ProfileRequest;
 import com.arkvalleyevents.msse692_backend.model.AppUser;
 import com.arkvalleyevents.msse692_backend.model.Profile;
 import com.arkvalleyevents.msse692_backend.repository.AppUserRepository;
-import com.arkvalleyevents.msse692_backend.repository.ProfileRepository;
 import com.arkvalleyevents.msse692_backend.service.ProfileService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -21,19 +20,16 @@ import static org.junit.jupiter.api.Assertions.*;
  * Integration test hitting real H2 + Flyway schema for profile upsert behavior.
  */
 @SpringBootTest
-@ActiveProfiles("dev")
+@ActiveProfiles("test")
 @TestPropertySource(properties = {
-        "spring.flyway.enabled=true",
-        "spring.flyway.locations=classpath:db/migration",
-        "spring.jpa.hibernate.ddl-auto=validate"
+    "spring.flyway.enabled=false",
+    "spring.jpa.hibernate.ddl-auto=update"
 })
 @DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_EACH_TEST_METHOD)
 class ProfileIntegrationTest {
 
     @Autowired
     private AppUserRepository appUserRepository;
-    @Autowired
-    private ProfileRepository profileRepository;
     @Autowired
     private ProfileService profileService;
 

@@ -1,7 +1,5 @@
 package com.arkvalleyevents.msse692_backend.config;
 
-import com.arkvalleyevents.msse692_backend.model.AppUser;
-import com.arkvalleyevents.msse692_backend.repository.AppUserRepository;
 import java.util.Optional;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -16,21 +14,22 @@ import org.springframework.security.oauth2.jwt.Jwt;
 public class JpaConfig {
 
 	@Bean
-	public AuditorAware<Long> appUserAuditorAware(AppUserRepository appUserRepository) {
+	public AuditorAware<Long> appUserAuditorAware() {
 		return new AuditorAware<Long>() {
 			@Override
 			@SuppressWarnings("null")
 			public Optional<Long> getCurrentAuditor() {
+				// First check thread-local set by AppUserUpsertFilter
+				Optional<Long> tl = CurrentAuditor.get();
+				if (tl.isPresent()) return tl;
+				// Fallback: attempt to extract from SecurityContext without hitting repositories
 				Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-				if (auth == null || !auth.isAuthenticated()) {
-					return Optional.empty();
-				}
+				if (auth == null || !auth.isAuthenticated()) return Optional.empty();
 				Object principal = auth.getPrincipal();
 				if (principal instanceof Jwt jwt) {
-					String uid = strClaim(jwt, "sub");
-					if (uid == null || uid.isBlank()) uid = strClaim(jwt, "user_id");
-					if (uid != null && !uid.isBlank()) {
-						return appUserRepository.findByFirebaseUid(uid).map(AppUser::getId);
+					String rawId = strClaim(jwt, "app_user_id"); // optional custom claim if added later
+					if (rawId != null) {
+						try { return Optional.of(Long.parseLong(rawId)); } catch (NumberFormatException ignored) {}
 					}
 				}
 				return Optional.empty();

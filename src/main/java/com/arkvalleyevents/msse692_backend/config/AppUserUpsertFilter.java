@@ -40,17 +40,19 @@ public class AppUserUpsertFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth != null && auth.getPrincipal() instanceof org.springframework.security.oauth2.jwt.Jwt jwtPrincipal) {
-            upsertFromJwt(jwtPrincipal);
+            Long userId = upsertFromJwt(jwtPrincipal);
+            CurrentAuditor.set(userId); // make available to AuditorAware
         }
         filterChain.doFilter(request, response);
+        CurrentAuditor.clear();
     }
 
-    private void upsertFromJwt(Jwt jwt) {
+    private Long upsertFromJwt(Jwt jwt) {
         String uid = claim(jwt, "sub"); // Firebase UID is subject
         if (uid == null || uid.isBlank()) {
             uid = claim(jwt, "user_id");
         }
-        if (uid == null || uid.isBlank()) return;
+        if (uid == null || uid.isBlank()) return null;
 
         Optional<AppUser> existing = repository.findByFirebaseUid(uid);
         if (existing.isPresent()) {
@@ -79,6 +81,7 @@ public class AppUserUpsertFilter extends OncePerRequestFilter {
 
             if (picture != null && !picture.equals(u.getPhotoUrl())) { u.setPhotoUrl(picture); changed = true; }
             if (changed) repository.save(Objects.requireNonNull(u));
+            return u.getId();
         } else {
             AppUser u = new AppUser();
             u.setFirebaseUid(uid);
@@ -89,6 +92,7 @@ public class AppUserUpsertFilter extends OncePerRequestFilter {
             roles.add("USER");
             u.setRoles(roles);
             repository.save(u);
+            return u.getId();
         }
     }
 

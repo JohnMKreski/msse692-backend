@@ -75,7 +75,7 @@ public class EventServiceImpl implements EventService {
     // Update
     @Override
     public EventDetailDto updateEvent(Long eventId, UpdateEventDto request) {
-        log.debug("Attempting to publish event with ID={}", eventId);
+    log.debug("Attempting to update event ID={}", eventId);
     Event existing = eventRepository.findById(eventId)
                 .orElseThrow(() -> new EntityNotFoundException("Event not found: " + eventId));
         // Update the event entity with non-null fields from the request DTO
@@ -83,7 +83,7 @@ public class EventServiceImpl implements EventService {
 
         Event saved = eventRepository.save(existing);
         auditService.logUpdate(eventId);
-        log.info("Event ID={} published successfully.", eventId);
+        log.info("Event ID={} updated successfully (status={}).", eventId, existing.getStatus());
         return mapper.toDetailDto(saved);
     }
 
