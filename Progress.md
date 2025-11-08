@@ -155,40 +155,47 @@
 - SSR note (if you enable Angular Universal):
     - You can still keep the same-origin model via the reverse proxy. The SSR node server and backend can be routed behind the same domain.
 
-11/08/2025
+## 11/08/2025 — Changes
 
-## Production-ready: Firebase custom claims for roles
+### Backend
 
-- Source of truth
-    - Roles are authoritative in the backend DB (`AppUser.roles`). Firebase custom claims are a mirrored cache for client gating only.
+#### Firebase Admin integration
+- Added FirebaseApp/FirebaseAuth beans.
+- Implemented FirebaseClaimsSyncService (+ Impl): normalize roles, add USER if empty, compute `roles_version`, set custom claims, structured logs.
 
-- Credentials and identity (no long-lived keys)
-    - In production, run the backend with a Google Cloud service account attached to the workload (Cloud Run/GKE/GCE) and grant it only `roles/firebaseauth.admin`.
-    - Prefer Workload Identity/metadata server over JSON keys. If keys must exist temporarily, store outside the repo, restrict access, and rotate; plan a migration to keyless.
+#### Admin endpoints
+- GET `/api/admin/users/{uid}/roles`
+- POST `/api/admin/users/{uid}/roles` (add; triggers sync)
+- DELETE `/api/admin/users/{uid}/roles/{role}` (remove; triggers sync)
+- POST `/api/admin/users/{uid}/roles/sync?force=bool`
+- Controller logs actor, uid, changes.
 
-- Lifecycle to keep claims in sync
-    - When an admin changes a user’s roles in the DB, immediately push the updated roles to Firebase custom claims.
-    - Optionally include a lightweight version/hash in the claim (e.g., `roles_version`) to detect drift and avoid unnecessary updates.
-    - Provide an admin-only “resync claims” endpoint for recovery and operational use.
+#### Security
+- `ProdSecurityConfig`: issuer/audience validation; map roles from JWT claims; fallback to DB roles if claim missing; default USER when empty; run `AppUserUpsertFilter` after auth.
 
-- Backend enforcement and UI usage
-    - The backend should continue doing authorization from trusted server-side context (mapped authorities). Do not trust client claims for server authorization.
-    - The frontend may use the `roles` claim for feature gating; if missing, it can fall back to a backend `/me` endpoint (already supported via `AppUser.roles`).
+#### Tests/observability
+- Unit tests for claims sync normalization/default/error paths.
+- Enhanced logs for sync attempts, success/failure, timing.
 
-- Token refresh behavior
-    - After claims change, clients must refresh their ID token to see the new roles. In the UI flow, prompt/trigger a token refresh or sign-out/in where appropriate.
+#### Deferred by design
+- No DB-persisted roles hash or audit table for claim sync (logging-only).
 
-- Security hardening
-    - Grant the minimum IAM needed: only the backend runtime identity should have `firebaseauth.admin`; humans use break-glass workflows when required.
-    - Log and monitor all role changes and claim pushes (who changed, target user, old→new roles, timestamp). Avoid putting sensitive data in claims; stay well below the ~1KB limit.
-    - Keep org policy protections enabled (e.g., service account key creation disabled) and use conditional exceptions only for limited dev projects when necessary.
+### Frontend
 
-- Observability and runbook
-    - Emit structured logs for claim update attempts, successes, and failures (with retry/backoff on transient errors).
-    - Dashboard: track error rates for claim updates; create an alert if failures exceed a threshold.
-    - Runbook: if claims drift from DB roles, use the admin resync endpoint; if user not found in Firebase, reconcile accounts (recreate or correct UID mapping).
+#### Auth plumbing
+- HTTP interceptor adds `Authorization: Bearer <ID token>`.
+- Proxy routes `/api` → `http://localhost:8080`.
 
-- Testing and rollout
-    - Pre-prod: test the flow end-to-end with a non-admin and an admin user (add/remove roles; verify frontend updates after token refresh; verify backend access controls).
-    - Staged rollout: enable claims push on admin role changes first; later consider adding automatic sync on first login if needed. Maintain the DB→claims direction as authoritative.
+#### Test API page (`/test-api`)
+- “Admin: Get Roles by UID” form; shows response.
+- “Refresh Token” button (force `getIdToken(true)`).
+
+#### Profile page (`/profile`)
+- Section 1: shows full Firebase user JSON, Token Claims JSON, Roles with source (`firebase-claims` or `backend-fallback`).
+- Decoded ID token header/payload displayed.
+- “Refresh Token & Claims” button to re-fetch claims.
+
+#### UX/validation
+- Identified and fixed 401 root causes (placeholder UID, truncated token).
+- Verified admin-only endpoints with Postman and in-app tools.
 
