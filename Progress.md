@@ -154,3 +154,41 @@
     - Keep auth via `Authorization: Bearer <token>` (ensure CORS allows that header)
 - SSR note (if you enable Angular Universal):
     - You can still keep the same-origin model via the reverse proxy. The SSR node server and backend can be routed behind the same domain.
+
+11/08/2025
+
+## Production-ready: Firebase custom claims for roles
+
+- Source of truth
+    - Roles are authoritative in the backend DB (`AppUser.roles`). Firebase custom claims are a mirrored cache for client gating only.
+
+- Credentials and identity (no long-lived keys)
+    - In production, run the backend with a Google Cloud service account attached to the workload (Cloud Run/GKE/GCE) and grant it only `roles/firebaseauth.admin`.
+    - Prefer Workload Identity/metadata server over JSON keys. If keys must exist temporarily, store outside the repo, restrict access, and rotate; plan a migration to keyless.
+
+- Lifecycle to keep claims in sync
+    - When an admin changes a user’s roles in the DB, immediately push the updated roles to Firebase custom claims.
+    - Optionally include a lightweight version/hash in the claim (e.g., `roles_version`) to detect drift and avoid unnecessary updates.
+    - Provide an admin-only “resync claims” endpoint for recovery and operational use.
+
+- Backend enforcement and UI usage
+    - The backend should continue doing authorization from trusted server-side context (mapped authorities). Do not trust client claims for server authorization.
+    - The frontend may use the `roles` claim for feature gating; if missing, it can fall back to a backend `/me` endpoint (already supported via `AppUser.roles`).
+
+- Token refresh behavior
+    - After claims change, clients must refresh their ID token to see the new roles. In the UI flow, prompt/trigger a token refresh or sign-out/in where appropriate.
+
+- Security hardening
+    - Grant the minimum IAM needed: only the backend runtime identity should have `firebaseauth.admin`; humans use break-glass workflows when required.
+    - Log and monitor all role changes and claim pushes (who changed, target user, old→new roles, timestamp). Avoid putting sensitive data in claims; stay well below the ~1KB limit.
+    - Keep org policy protections enabled (e.g., service account key creation disabled) and use conditional exceptions only for limited dev projects when necessary.
+
+- Observability and runbook
+    - Emit structured logs for claim update attempts, successes, and failures (with retry/backoff on transient errors).
+    - Dashboard: track error rates for claim updates; create an alert if failures exceed a threshold.
+    - Runbook: if claims drift from DB roles, use the admin resync endpoint; if user not found in Firebase, reconcile accounts (recreate or correct UID mapping).
+
+- Testing and rollout
+    - Pre-prod: test the flow end-to-end with a non-admin and an admin user (add/remove roles; verify frontend updates after token refresh; verify backend access controls).
+    - Staged rollout: enable claims push on admin role changes first; later consider adding automatic sync on first login if needed. Maintain the DB→claims direction as authoritative.
+
