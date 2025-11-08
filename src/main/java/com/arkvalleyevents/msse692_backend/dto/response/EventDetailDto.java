@@ -45,4 +45,8 @@ public class EventDetailDto {
 
     private Instant createdAt;
     private Instant updatedAt;
+
+    // Ownership (populated by JPA auditing)
+    private Long createdByUserId;
+    private Long lastModifiedByUserId;
 }

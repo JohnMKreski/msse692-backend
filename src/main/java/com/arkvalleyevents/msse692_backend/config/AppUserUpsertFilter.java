@@ -1,7 +1,9 @@
 package com.arkvalleyevents.msse692_backend.config;
 
 import com.arkvalleyevents.msse692_backend.model.AppUser;
+import com.arkvalleyevents.msse692_backend.model.Profile;
 import com.arkvalleyevents.msse692_backend.repository.AppUserRepository;
+import com.arkvalleyevents.msse692_backend.repository.ProfileRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -26,9 +28,11 @@ import org.springframework.web.filter.OncePerRequestFilter;
 public class AppUserUpsertFilter extends OncePerRequestFilter {
 
     private final AppUserRepository repository;
+    private final ProfileRepository profileRepository;
 
-    public AppUserUpsertFilter(AppUserRepository repository) {
+    public AppUserUpsertFilter(AppUserRepository repository, ProfileRepository profileRepository) {
         this.repository = repository;
+        this.profileRepository = profileRepository;
     }
 
     @Override
@@ -55,8 +59,24 @@ public class AppUserUpsertFilter extends OncePerRequestFilter {
             String email = claim(jwt, "email");
             String name = claim(jwt, "name");
             String picture = claim(jwt, "picture");
+
             if (email != null && !email.equals(u.getEmail())) { u.setEmail(email); changed = true; }
-            if (name != null && !name.equals(u.getDisplayName())) { u.setDisplayName(name); changed = true; }
+
+            // If a completed Profile exists for this user, do NOT overwrite displayName from JWT
+            boolean hasCompletedProfile = false;
+            try {
+                hasCompletedProfile = profileRepository
+                    .findByUserId(u.getId())
+                    .map(Profile::isCompleted)
+                    .orElse(false);
+            } catch (Exception ignored) {
+                // In case repository not available in certain profiles/tests, fail open to original behavior
+            }
+
+            if (!hasCompletedProfile) {
+                if (name != null && !name.equals(u.getDisplayName())) { u.setDisplayName(name); changed = true; }
+            }
+
             if (picture != null && !picture.equals(u.getPhotoUrl())) { u.setPhotoUrl(picture); changed = true; }
             if (changed) repository.save(Objects.requireNonNull(u));
         } else {

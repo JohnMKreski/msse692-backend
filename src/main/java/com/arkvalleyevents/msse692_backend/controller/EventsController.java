@@ -4,6 +4,8 @@ import com.arkvalleyevents.msse692_backend.dto.request.CreateEventDto;
 import com.arkvalleyevents.msse692_backend.dto.request.UpdateEventDto;
 import com.arkvalleyevents.msse692_backend.dto.response.EventDetailDto;
 import com.arkvalleyevents.msse692_backend.dto.response.EventDto;
+import com.arkvalleyevents.msse692_backend.dto.response.EventAuditDto;
+import com.arkvalleyevents.msse692_backend.service.EventAuditService;
 import com.arkvalleyevents.msse692_backend.service.EventService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -31,9 +33,11 @@ public class EventsController {
 
     //Service
     private final EventService eventService;
+    private final EventAuditService eventAuditService;
 
-    public EventsController(EventService eventService) {
+    public EventsController(EventService eventService, EventAuditService eventAuditService) {
         this.eventService = eventService;
+        this.eventAuditService = eventAuditService;
         log.info("EventsController initialized");
     }
 
@@ -103,6 +107,25 @@ public class EventsController {
         filters.remove("sort");
 
         return eventService.listEvents(filters, Math.max(page, 0), Math.max(size, 1), sort);
+    }
+
+    // GET /api/events/{id}/audits  (read-only audit trail)
+    @GetMapping("/{id}/audits")
+    public ResponseEntity<java.util.List<EventAuditDto>> getEventAudits(@PathVariable("id") Long eventId,
+                                                                        @RequestParam(name = "limit", required = false, defaultValue = "10") int limit) {
+        var audits = eventAuditService.getRecentForEvent(eventId, limit)
+                .stream()
+                .map(a -> {
+                    EventAuditDto dto = new EventAuditDto();
+                    dto.setId(a.getId());
+                    dto.setEventId(a.getEventId());
+                    dto.setActorUserId(a.getActorUserId());
+                    dto.setAction(a.getAction());
+                    dto.setAt(a.getAt());
+                    return dto;
+                })
+                .toList();
+        return ResponseEntity.ok(audits);
     }
 
 }

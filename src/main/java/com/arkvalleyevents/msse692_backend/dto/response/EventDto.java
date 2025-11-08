@@ -30,6 +30,10 @@ public class EventDto {
     private String eventLocation;
 //    private String eventDescription; TODO: Consider adding a short description field for listing views
 
+    // Ownership (populated by JPA auditing)
+    private Long createdByUserId;
+    private Long lastModifiedByUserId;
+
     // Flattened relationships
 //    private String venueName;
 //    private Set<String> artistNames;

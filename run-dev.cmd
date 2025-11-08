@@ -1,0 +1,6 @@
+@echo off
+REM Run Spring Boot with dev profile (H2) after clean compile
+echo [dev] Cleaning and compiling...
+call mvnw.cmd -q clean compile
+echo [dev] Starting application with Maven profile...
+call mvnw.cmd -Pdev spring-boot:run

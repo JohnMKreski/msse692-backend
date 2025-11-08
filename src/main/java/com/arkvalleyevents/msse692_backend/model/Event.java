@@ -5,14 +5,14 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.ToString;
 import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.CreatedBy;
 import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.annotation.LastModifiedBy;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -65,6 +65,16 @@ public class Event {
 
     @Version
     private Long version;
+
+    // Ownership principal IDs (FK columns created_by, last_modified_by)
+    // Populated via AuditorAware<Long>
+    @CreatedBy
+    @Column(name = "created_by")
+    private Long createdByUserId;
+
+    @LastModifiedBy
+    @Column(name = "last_modified_by")
+    private Long lastModifiedByUserId;
 
 
 

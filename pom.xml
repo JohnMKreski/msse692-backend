@@ -78,11 +78,13 @@
 		<dependency>
 			<groupId>org.flywaydb</groupId>
 			<artifactId>flyway-core</artifactId>
+			<version>10.17.0</version>
 		</dependency>
 		<!-- Flyway database plugin for PostgreSQL (required with Flyway 9+/10+ modularization) -->
 		<dependency>
 			<groupId>org.flywaydb</groupId>
 			<artifactId>flyway-database-postgresql</artifactId>
+			<version>10.17.0</version>
 			<scope>runtime</scope>
 		</dependency>
 		<dependency>
@@ -190,7 +192,46 @@
 				</configuration>
 			</plugin>
 
+			<plugin>
+				<groupId>org.flywaydb</groupId>
+				<artifactId>flyway-maven-plugin</artifactId>
+				<version>10.17.0</version>
+				<configuration>
+					<url>${flyway.url}</url>
+					<user>${flyway.user}</user>
+					<password>${flyway.password}</password>
+					<locations>
+						<location>classpath:db/migration</location>
+                    </locations>
+					<schemas>
+					<schema>public</schema>
+					</schemas>
+				</configuration>
+			</plugin>
+
 		</plugins>
 	</build>
+
+	<profiles>
+		<profile>
+			<id>dev</id>
+			<properties>
+				<!-- Spring Boot plugin respects this when running spring-boot:run -->
+				<spring-boot.run.profiles>dev</spring-boot.run.profiles>
+			</properties>
+		</profile>
+		<profile>
+			<id>local</id>
+			<properties>
+				<spring-boot.run.profiles>local</spring-boot.run.profiles>
+			</properties>
+		</profile>
+		<profile>
+			<id>prod</id>
+			<properties>
+				<spring-boot.run.profiles>prod</spring-boot.run.profiles>
+			</properties>
+		</profile>
+	</profiles>
 
 </project>

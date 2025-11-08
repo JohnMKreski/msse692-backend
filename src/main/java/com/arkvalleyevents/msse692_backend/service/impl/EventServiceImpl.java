@@ -6,6 +6,7 @@ import com.arkvalleyevents.msse692_backend.dto.response.EventDetailDto;
 import com.arkvalleyevents.msse692_backend.dto.response.EventDto;
 import com.arkvalleyevents.msse692_backend.model.EventType;
 import com.arkvalleyevents.msse692_backend.service.EventService;
+import com.arkvalleyevents.msse692_backend.service.EventAuditService;
 
 import jakarta.persistence.EntityNotFoundException;
 
@@ -40,10 +41,12 @@ public class EventServiceImpl implements EventService {
 
     private final EventRepository eventRepository;
     private final EventMapper mapper;
+    private final EventAuditService auditService;
 
-    public EventServiceImpl(EventRepository eventRepository, @Qualifier("eventMapperImpl") EventMapper mapper) {
+    public EventServiceImpl(EventRepository eventRepository, @Qualifier("eventMapperImpl") EventMapper mapper, EventAuditService auditService) {
         this.eventRepository = eventRepository;
         this.mapper = mapper;
+        this.auditService = auditService;
     }
 
     //=========================
@@ -64,6 +67,7 @@ public class EventServiceImpl implements EventService {
         entity.setSlug(uniqueSlug);
 
         Event saved = eventRepository.save(entity);
+        auditService.logCreate(saved.getEventId());
         log.info("Event created successfully with ID={} and status={}", saved.getEventId(), saved.getStatus());
         return mapper.toDetailDto(saved); //toDetailDto defined in the mapper to return EventDetailDto and take (Event entity)
     }
@@ -72,12 +76,13 @@ public class EventServiceImpl implements EventService {
     @Override
     public EventDetailDto updateEvent(Long eventId, UpdateEventDto request) {
         log.debug("Attempting to publish event with ID={}", eventId);
-        Event existing = eventRepository.findById(eventId)
+    Event existing = eventRepository.findById(eventId)
                 .orElseThrow(() -> new EntityNotFoundException("Event not found: " + eventId));
         // Update the event entity with non-null fields from the request DTO
         mapper.updateEntity(existing, request); // partial update (non‑nulls)
 
         Event saved = eventRepository.save(existing);
+        auditService.logUpdate(eventId);
         log.info("Event ID={} published successfully.", eventId);
         return mapper.toDetailDto(saved);
     }
@@ -96,6 +101,7 @@ public class EventServiceImpl implements EventService {
 
         event.setStatus(EventStatus.PUBLISHED);
         Event saved = eventRepository.save(event);
+        auditService.logUpdate(eventId);
 
         log.info("Event ID={} successfully published. Previous status=DRAFT → new status={}", eventId, saved.getStatus());
         return mapper.toDetailDto(saved);
@@ -114,6 +120,7 @@ public class EventServiceImpl implements EventService {
 
         event.setStatus(EventStatus.UNPUBLISHED);
         Event saved = eventRepository.save(event);
+        auditService.logUpdate(eventId);
 
         log.info("Event ID={} successfully unpublished. Previous status=PUBLISHED → new status={}", eventId, saved.getStatus());
         return mapper.toDetailDto(saved);
@@ -131,6 +138,7 @@ public class EventServiceImpl implements EventService {
 
         event.setStatus(EventStatus.CANCELLED);
         Event saved = eventRepository.save(event);
+        auditService.logUpdate(eventId);
 
         log.info("Event ID={} successfully cancelled. Previous status={} → new status={}", eventId, event.getStatus(), saved.getStatus());
         return mapper.toDetailDto(saved);
@@ -144,6 +152,7 @@ public class EventServiceImpl implements EventService {
             throw new EntityNotFoundException("Event not found: " + eventId);
         }
 
+        auditService.logDelete(eventId);
         eventRepository.deleteById(eventId);
         log.info("Event ID={} deleted.", eventId);
     }

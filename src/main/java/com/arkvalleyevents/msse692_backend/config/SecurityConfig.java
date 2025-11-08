@@ -10,10 +10,10 @@ import org.springframework.security.web.SecurityFilterChain;
  * Development-only security: open endpoints for fast iteration against H2/dev.
  */
 @Configuration
-@Profile("dev")
+@Profile("dev-disabled")
 public class SecurityConfig {
-    @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    @Bean(name = "devOpenSecurityFilterChain")
+    public SecurityFilterChain devOpenSecurityFilterChain(HttpSecurity http) throws Exception {
         http
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth.anyRequest().permitAll());
