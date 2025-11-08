@@ -111,3 +111,46 @@
 • Misc: Normalized event selection for audits (fallback to all events if user has none) and ensured selectedEventId initializes promptly to load audits.
 • Result: CRUD (create, list, update, delete) and auditing fully operational across dev/local; PUT works with ADMIN token; no further StackOverflow errors observed.
 
+
+### Safe migrations (policy)
+
+- Never edit an applied migration. If a change is needed, add a new versioned file (V{n+1}__short_description.sql) rather than altering Vn files.
+- Profiles:
+    - Dev/Test (H2): Flyway disabled; Hibernate `ddl-auto=update` manages schema. Don’t use H2 to validate Postgres-specific types.
+    - Local/Prod (Postgres): Flyway enabled; migrations are the sole source of schema truth.
+- Baseline/attach: When pointing Flyway at an existing DB, set a baseline version and migrate forward; don’t “clean” a shared database.
+- Repair usage: Use “repair” only to fix metadata after a failed or partially applied migration you’ve verified. Prefer writing a new migration over editing a checksumed file.
+- Authoring guidelines:
+    - Keep migrations small, ordered, and clearly named; avoid combining unrelated changes.
+    - Prefer additive, backward-compatible changes (add column with default, backfill, then make NOT NULL) to reduce downtime/locking.
+    - Avoid destructive operations (DROP/DELETE) unless absolutely necessary and only with backups and explicit approval.
+    - Make backfills safe and chunked if touching many rows; avoid long locks.
+- Validation:
+    - Test migrations end-to-end on a fresh Postgres instance before merging.
+    - Don’t rely on H2 behavior to predict Postgres behavior.
+- Recovery playbook:
+    1) Dev-only failure: bump version with a corrected migration and rerun; don’t edit the faulty file.
+    2) Checksum mismatch locally: revert your file to the applied version or run a targeted repair after confirming SQL parity.
+    3) Need to revert: write forward “undo” migrations (don’t delete history) and then apply a fix-forward migration.
+
+### Development (Angular on :4200, Spring Boot on :8080)
+
+- Yes—keep using Angular’s dev proxy (`proxy.conf.json`). It:
+    - Avoids CORS headaches
+    - Lets you keep a relative API base path like `/api` in the app
+    - Keeps local URLs simple and consistent
+- Make sure you actually start the dev server with the proxy config so requests don’t bypass it.
+
+### Production
+
+- Don’t rely on the Angular dev proxy. Instead:
+    - Best: serve the frontend and backend under the same domain and use an edge reverse proxy (NGINX/Traefik/API Gateway) to route:
+        - `/` → frontend (static assets or SSR)
+        - `/api` → Spring Boot
+    - Benefits: no CORS, simpler security, cookies work if you ever need them, consistent origin
+- If you must host on separate domains:
+    - Configure CORS on Spring Boot (allowed origins, methods, headers including `Authorization`)
+    - Use an absolute API URL in Angular’s environment files for prod
+    - Keep auth via `Authorization: Bearer <token>` (ensure CORS allows that header)
+- SSR note (if you enable Angular Universal):
+    - You can still keep the same-origin model via the reverse proxy. The SSR node server and backend can be routed behind the same domain.
