@@ -199,3 +199,120 @@
 - Identified and fixed 401 root causes (placeholder UID, truncated token).
 - Verified admin-only endpoints with Postman and in-app tools.
 
+11/11/2025
+
+Event Status:
+Backend steps
+Expose EventStatus via EnumsController
+
+Add GET /api/v1/enums/event-statuses.
+Response shape: an array of { code: "DRAFT" | "PUBLISHED" | "UNPUBLISHED" | "CANCELLED", displayName: string }.
+Source displayName from EventStatus.getStatusDisplayName().
+Note: Clean up the enum double semicolon in EventStatus if desired (CANCELLED(...);; → CANCELLED(...);) as a tiny hygiene fix.
+Define status transition endpoints (if not already present)
+
+POST /api/v1/events/{id}/publish → EventDetailDto
+POST /api/v1/events/{id}/unpublish → EventDetailDto
+POST /api/v1/events/{id}/cancel → EventDetailDto
+These should delegate to EventServiceImpl.publishEvent/unpublishEvent/cancelEvent and return the updated event.
+Enforce allowed transitions (state machine)
+
+Allowed:
+DRAFT → PUBLISHED
+PUBLISHED → UNPUBLISHED
+DRAFT | PUBLISHED | UNPUBLISHED → CANCELLED
+Disallowed:
+PUBLISHED → DRAFT, UNPUBLISHED → PUBLISHED (use publish to re-publish), CANCELLED → anything
+On disallowed transitions, return 409 Conflict with standardized error body (your existing RestExceptionHandler schema).
+Idempotency and error semantics
+
+If publish is called on PUBLISHED or cancel on CANCELLED:
+Either return 409 (preferred for clear UX) or make it idempotent no-op with 200; choose one and document it. Your current service throws IllegalStateException → map to 409.
+Include requestId in responses via existing logging filter.
+Visibility and listing rules
+
+Public-facing listings must return only PUBLISHED events:
+Add repository/service method for “public upcoming” (status=PUBLISHED, startAt >= now, ascending).
+Keep an admin listing that can see all statuses (already present).
+Validation and time rules
+
+Optional: prevent publish if startAt/endAt are invalid (e.g., endAt < startAt) → 400 Bad Request.
+Security and authorization
+
+Require appropriate roles/authorities to perform publish/unpublish/cancel (e.g., ROLE_ADMIN or event owner).
+Leave GET status enums and public listings as permitAll.
+Add unit tests for authorization behavior or mock out security in controller tests.
+Logging and auditing
+
+Reuse EventAuditService to logUpdate on publish/unpublish/cancel and logCreate/logDelete elsewhere.
+Include eventId, previousStatus → newStatus in logs (already logged in EventServiceImpl).
+OpenAPI docs
+
+Document the enums endpoint and the three transition endpoints with request/response schemas and possible 409 error.
+Tests
+
+Unit tests (service): happy paths for each transition + negative cases (IllegalStateException → 409).
+Controller tests: ensure endpoints hit the service and return the correct status codes and payloads.
+Enum endpoint test: returns all statuses with correct display names.
+Frontend steps
+Model and enum retrieval
+
+Add a small interface: { code: 'DRAFT' | 'PUBLISHED' | 'UNPUBLISHED' | 'CANCELLED'; displayName: string }.
+In a shared enums service, add getEventStatuses() calling /api/v1/enums/event-statuses.
+Cache in-memory (e.g., via shareReplay(1)) to avoid repeated calls.
+Event status in UI
+
+Ensure EventDto/EventDetailDto use backend-provided status and statusDisplayName.
+For admin/editor pages, show the displayName; for logic, use code (strict comparisons).
+Action buttons for transitions
+
+On the event detail/admin edit screen:
+Show Publish when status === DRAFT.
+Show Unpublish when status === PUBLISHED.
+Show Cancel when status !== CANCELLED.
+Disable buttons while in-flight; show tooltips explaining why a button is disabled.
+Call transition endpoints
+
+Add methods to event service:
+publishEvent(id): POST /api/v1/events/{id}/publish
+unpublishEvent(id): POST /api/v1/events/{id}/unpublish
+cancelEvent(id): POST /api/v1/events/{id}/cancel
+On success: update local event state or refetch the event; show success toast/snackbar.
+On error (409): show a friendly message (e.g., “This action isn’t valid for the current status”).
+Public views filtering
+
+Public event lists should call a service method that only returns PUBLISHED (and optionally upcoming-only).
+Admin views can toggle filters to include DRAFT/UNPUBLISHED/CANCELLED.
+Routing and guards
+
+Public detail pages (by slug) should handle non-PUBLISHED events:
+Show 404/not found or a friendly message if event is not PUBLISHED.
+Admin route can still view non-published details if authorized.
+Accessibility and UX
+
+Add confirmation dialog for Cancel action.
+Provide clear status badges (colors/icons) with accessible text (aria-labels).
+Error handling
+
+Use your global HTTP interceptor to normalize errors; map 409 from backend to actionable UI messages.
+If rate limits or duplicates occur, present retry or guidance.
+Tests
+
+Unit tests for enums service (caching behavior, happy/error).
+Component tests: buttons render per status, call service on click, handle success/error states.
+Integration/e2e smoke: publish → unpublish → cancel basic flows.
+Contract and success criteria
+Inputs:
+Event ID for transitions; no body required.
+No body for enum fetch.
+Outputs:
+Transition endpoints return updated EventDetailDto.
+Enum endpoint returns array of { code, displayName }.
+Error modes:
+404 for missing event.
+409 for invalid transition.
+403 for unauthorized.
+Success criteria:
+Public lists show only PUBLISHED events.
+Admins can publish/unpublish/cancel per state machine.
+UI clearly reflects current status and available actions.

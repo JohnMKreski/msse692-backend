@@ -11,6 +11,8 @@ import com.arkvalleyevents.msse692_backend.service.EventService;
 import com.arkvalleyevents.msse692_backend.service.EventAuditService;
 import com.arkvalleyevents.msse692_backend.dto.request.CreateEventDto;
 import com.arkvalleyevents.msse692_backend.dto.response.EventDetailDto;
+import com.arkvalleyevents.msse692_backend.dto.response.EventDto;
+import com.arkvalleyevents.msse692_backend.model.EventStatus;
 import com.arkvalleyevents.msse692_backend.model.EventAudit;
 import com.arkvalleyevents.msse692_backend.dto.request.UpdateEventDto;
 import org.junit.jupiter.api.Test;
@@ -19,6 +21,7 @@ import org.mockito.MockitoAnnotations;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import com.arkvalleyevents.msse692_backend.controller.RestExceptionHandler;
 import static org.mockito.Mockito.*;
 import org.junit.jupiter.api.BeforeEach;
 
@@ -35,7 +38,9 @@ class EventsControllerTest {
   void setup() {
     MockitoAnnotations.openMocks(this);
     EventsController controller = new EventsController(eventService, eventAuditService);
-    mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
+    mockMvc = MockMvcBuilders.standaloneSetup(controller)
+        .setControllerAdvice(new RestExceptionHandler())
+        .build();
   }
 
     @Test
@@ -120,5 +125,65 @@ class EventsControllerTest {
         .andExpect(jsonPath("$[1].id").value(1L))
         .andExpect(jsonPath("$[1].action").value("CREATE"))
         .andExpect(jsonPath("$[1].actorUserId").value(7L));
+  }
+
+  // ===== New status transition & public feed tests =====
+
+  @Test
+  void publishEvent_returnsPublishedStatus() throws Exception {
+    EventDetailDto dto = new EventDetailDto();
+    dto.setEventId(50L);
+    dto.setStatus(EventStatus.PUBLISHED);
+    when(eventService.publishEvent(50L)).thenReturn(dto);
+
+    mockMvc.perform(post("/api/v1/events/50/publish"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.eventId").value(50L))
+        .andExpect(jsonPath("$.status").value("PUBLISHED"));
+  }
+
+  @Test
+  void publishEvent_illegalState_conflict() throws Exception {
+    when(eventService.publishEvent(51L)).thenThrow(new IllegalStateException("Only DRAFT events can be published"));
+
+    mockMvc.perform(post("/api/v1/events/51/publish"))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.code").value("ILLEGAL_STATE"));
+  }
+
+  @Test
+  void unpublishEvent_returnsUnpublishedStatus() throws Exception {
+    EventDetailDto dto = new EventDetailDto();
+    dto.setEventId(60L);
+    dto.setStatus(EventStatus.UNPUBLISHED);
+    when(eventService.unpublishEvent(60L)).thenReturn(dto);
+
+    mockMvc.perform(post("/api/v1/events/60/unpublish"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.status").value("UNPUBLISHED"));
+  }
+
+  @Test
+  void cancelEvent_returnsCancelledStatus() throws Exception {
+    EventDetailDto dto = new EventDetailDto();
+    dto.setEventId(70L);
+    dto.setStatus(EventStatus.CANCELLED);
+    when(eventService.cancelEvent(70L)).thenReturn(dto);
+
+    mockMvc.perform(post("/api/v1/events/70/cancel"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.status").value("CANCELLED"));
+  }
+
+  @Test
+  void listPublicUpcoming_returnsPublishedEvents() throws Exception {
+    EventDto e = new EventDto();
+    e.setEventId(80L);
+    e.setStatus(EventStatus.PUBLISHED);
+    when(eventService.listPublicUpcoming(any(), eq(3))).thenReturn(java.util.List.of(e));
+
+    mockMvc.perform(get("/api/v1/events/public-upcoming?limit=3"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$[0].eventId").value(80L));
   }
 }

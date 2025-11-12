@@ -51,6 +51,9 @@ public interface EventService {
     /** Lightweight helper for “what’s coming up from time X” with a hard cap. */
     List<EventDto> listUpcoming(LocalDateTime from, int limit);
 
+    /** Public feed: only PUBLISHED events starting at or after 'from', ascending by startAt, limited. */
+    List<EventDto> listPublicUpcoming(LocalDateTime from, int limit);
+
     /** Optional convenience queries (can be folded into listEvents via filters). */
     List<EventDto> getAllEvents();
     List<EventDto> getEventsByType(EventType eventType);

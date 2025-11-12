@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -93,6 +94,31 @@ public class EventsController {
         return ResponseEntity.noContent().build(); // 204 No Content
     }
 
+    // ===== Status transitions =====
+    @PostMapping("/{id}/publish") // POST /api/v1/events/{id}/publish
+    @PreAuthorize("hasAnyRole('ADMIN','EDITOR')")
+    public ResponseEntity<EventDetailDto> publishEvent(@PathVariable("id") Long eventId) {
+        log.info("POST /api/events/{}/publish", eventId);
+        EventDetailDto updated = eventService.publishEvent(eventId);
+        return ResponseEntity.ok(updated);
+    }
+
+    @PostMapping("/{id}/unpublish") // POST /api/v1/events/{id}/unpublish
+    @PreAuthorize("hasAnyRole('ADMIN','EDITOR')")
+    public ResponseEntity<EventDetailDto> unpublishEvent(@PathVariable("id") Long eventId) {
+        log.info("POST /api/events/{}/unpublish", eventId);
+        EventDetailDto updated = eventService.unpublishEvent(eventId);
+        return ResponseEntity.ok(updated);
+    }
+
+    @PostMapping("/{id}/cancel") // POST /api/v1/events/{id}/cancel
+    @PreAuthorize("hasAnyRole('ADMIN','EDITOR')")
+    public ResponseEntity<EventDetailDto> cancelEvent(@PathVariable("id") Long eventId) {
+        log.info("POST /api/events/{}/cancel", eventId);
+        EventDetailDto updated = eventService.cancelEvent(eventId);
+        return ResponseEntity.ok(updated);
+    }
+
     @Operation(summary = "List events", description = "Supports paging, sorting, and arbitrary query-string filters.")
     @GetMapping // GET /api/v1/events
     public List<EventDto> listEvents(
@@ -107,6 +133,18 @@ public class EventsController {
         filters.remove("sort");
 
         return eventService.listEvents(filters, Math.max(page, 0), Math.max(size, 1), sort);
+    }
+
+    // Public upcoming feed (only PUBLISHED future events)
+    @GetMapping("/public-upcoming") // GET /api/v1/events/public-upcoming?from=ISO&limit=10
+    public List<EventDto> listPublicUpcoming(@RequestParam(name = "from", required = false) String from,
+            @RequestParam(name = "limit", required = false, defaultValue = "10") int limit) {
+        LocalDateTime start = (from == null || from.isBlank()) ? LocalDateTime.now() : LocalDateTime.parse(from);
+        int effectiveLimit = Math.min(Math.max(limit, 1), 100); // clamp 1..100
+        if (effectiveLimit != limit) {
+            log.debug("Clamped public-upcoming limit from {} to {}", limit, effectiveLimit);
+        }
+        return eventService.listPublicUpcoming(start, effectiveLimit);
     }
 
     // GET /api/events/{id}/audits  (read-only audit trail)

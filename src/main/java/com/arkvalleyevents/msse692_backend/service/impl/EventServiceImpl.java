@@ -210,6 +210,17 @@ public class EventServiceImpl implements EventService {
 
     @Override
     @Transactional(readOnly = true)
+    public List<EventDto> listPublicUpcoming(LocalDateTime from, int limit) {
+        Pageable pageable = PageRequest.of(0, Math.max(limit, 1), Sort.by(Sort.Direction.ASC, "startAt"));
+        log.debug("Listing PUBLIC upcoming events from {} (limit={})", from, limit);
+        Page<Event> events = eventRepository.findByStatusAndStartAtGreaterThanEqualOrderByStartAtAsc(EventStatus.PUBLISHED, from, pageable);
+        List<EventDto> dtos = events.getContent().stream().map(mapper::toDto).toList();
+        log.info("Retrieved {} PUBLIC upcoming events (from={})", dtos.size(), from);
+        return dtos;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<EventDto> getAllEvents() {
         log.debug("Fetching all events (no filters or paging)");
         List<EventDto> events = eventRepository.findAll().stream().map(mapper::toDto).toList();
