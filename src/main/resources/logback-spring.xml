@@ -4,7 +4,8 @@
     <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
 
     <!-- ========= LOG PATTERN ========= -->
-    <property name="LOG_PATTERN" value="%clr(%d{yyyy-MM-dd HH:mm:ss.SSS}){faint} %clr(%-5level) %clr([%15.15t]){faint} %clr(%-40.40logger{36}){cyan} - %clr(%msg){white}%n"/>
+    <!-- Add MDC fields for request correlation -->
+    <property name="LOG_PATTERN" value="%clr(%d{yyyy-MM-dd HH:mm:ss.SSS}){faint} %clr(%-5level) %clr([%15.15t]){faint} %clr(%-40.40logger{36}){cyan} %clr([rid:%X{requestId} user:%X{user}]){green} - %clr(%msg){white}%n"/>
 
     <!-- ========= CONSOLE APPENDER (colorized) ========= -->
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
@@ -25,8 +26,8 @@
         </rollingPolicy>
 
         <encoder>
-            <!-- Plain, no color (for better readability in text files) -->
-            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %-40.40logger{36} - %msg%n</pattern>
+            <!-- Plain, no color (for better readability in text files); include MDC keys -->
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %-40.40logger{36} [rid:%X{requestId} user:%X{user}] - %msg%n</pattern>
         </encoder>
     </appender>
 

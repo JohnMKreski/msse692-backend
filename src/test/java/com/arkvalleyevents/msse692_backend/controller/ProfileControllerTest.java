@@ -41,7 +41,7 @@ class ProfileControllerTest {
     void getProfile_notFound_returns404() throws Exception {
         when(profileService.getCurrentProfile("firebase-123")).thenReturn(Optional.empty());
 
-        mockMvc.perform(get("/api/profile/me")
+    mockMvc.perform(get("/api/v1/profile/me")
                 .with(jwt().jwt(j -> j.claim("sub", "firebase-123"))))
             .andExpect(status().isNotFound())
             .andExpect(jsonPath("$.code").value("PROFILE_NOT_FOUND"));
@@ -60,7 +60,7 @@ class ProfileControllerTest {
         p.setUpdatedAt(OffsetDateTime.now());
     when(profileService.getCurrentProfile("uid-456")).thenReturn(Optional.of(p));
 
-    mockMvc.perform(get("/api/profile/me")
+    mockMvc.perform(get("/api/v1/profile/me")
         .with(jwt().jwt(j -> j.claim("sub", "uid-456"))))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.displayName").value("Display"))
@@ -81,7 +81,7 @@ class ProfileControllerTest {
         p.setUpdatedAt(OffsetDateTime.now());
     when(profileService.upsertProfile(eq("uid-new"), any())).thenReturn(p);
 
-        mockMvc.perform(post("/api/profile")
+    mockMvc.perform(post("/api/v1/profile")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"displayName\":\"New Name\"}")
         .with(jwt().jwt(j -> j.claim("sub", "uid-new"))))
@@ -111,7 +111,7 @@ class ProfileControllerTest {
         updated.setUpdatedAt(OffsetDateTime.now());
     when(profileService.upsertProfile(eq("uid-existing"), any())).thenReturn(updated);
 
-        mockMvc.perform(post("/api/profile")
+    mockMvc.perform(post("/api/v1/profile")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"displayName\":\"Updated Name\"}")
         .with(jwt().jwt(j -> j.claim("sub", "uid-existing"))))

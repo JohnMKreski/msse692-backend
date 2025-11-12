@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/app-users")
+@RequestMapping("/api/v1/app-users") // API versioned base path (added v1)
 public class AppUserController {
 
     private final AppUserRepository repository;
@@ -22,7 +22,7 @@ public class AppUserController {
         this.repository = repository;
     }
 
-    @GetMapping("/me")
+    @GetMapping("/me") // GET /api/v1/app-users/me
     public ResponseEntity<?> me(Authentication authentication) {
         String uid = extractUid(authentication);
         Optional<AppUser> user = repository.findByFirebaseUid(uid);

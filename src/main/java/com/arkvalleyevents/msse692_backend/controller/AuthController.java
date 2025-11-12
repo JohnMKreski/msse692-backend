@@ -9,10 +9,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/auth")
+@RequestMapping("/api/v1/auth") // API versioned base path (added v1)
 public class AuthController {
 
-    @GetMapping("/whoami")
+    @GetMapping("/whoami") // GET /api/v1/auth/whoami
     public Map<String, Object> whoAmI(Authentication auth) {
         Map<String, Object> out = new HashMap<>();
         if (auth == null) {

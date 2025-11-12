@@ -7,8 +7,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-import com.arkvalleyevents.msse692_backend.repository.AppUserRepository;
-import com.arkvalleyevents.msse692_backend.repository.ProfileRepository;
 import com.arkvalleyevents.msse692_backend.service.EventService;
 import com.arkvalleyevents.msse692_backend.service.EventAuditService;
 import com.arkvalleyevents.msse692_backend.dto.request.CreateEventDto;
@@ -16,32 +14,29 @@ import com.arkvalleyevents.msse692_backend.dto.response.EventDetailDto;
 import com.arkvalleyevents.msse692_backend.model.EventAudit;
 import com.arkvalleyevents.msse692_backend.dto.request.UpdateEventDto;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import static org.mockito.Mockito.*;
+import org.junit.jupiter.api.BeforeEach;
 
-@WebMvcTest(EventsController.class)
-@AutoConfigureMockMvc(addFilters = false)
 class EventsControllerTest {
 
-    @Autowired
-    private MockMvc mockMvc;
-
-    @MockitoBean
-    private EventService eventService;
-
-  // Added mock repositories to satisfy AppUserUpsertFilter constructor in slice context
-  @MockitoBean
-  private AppUserRepository appUserRepository;
-  @MockitoBean
-  private ProfileRepository profileRepository;
-
-  @MockitoBean
+  @Mock
+  private EventService eventService;
+  @Mock
   private EventAuditService eventAuditService;
+
+  private MockMvc mockMvc;
+
+  @BeforeEach
+  void setup() {
+    MockitoAnnotations.openMocks(this);
+    EventsController controller = new EventsController(eventService, eventAuditService);
+    mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
+  }
 
     @Test
   void createEvent_returnsCreated_withOwnershipFields() throws Exception {
@@ -53,7 +48,7 @@ class EventsControllerTest {
 
         when(eventService.createEvent(any(CreateEventDto.class))).thenReturn(dto);
 
-  mockMvc.perform(post("/api/events").contentType(MediaType.APPLICATION_JSON_VALUE)
+  mockMvc.perform(post("/api/v1/events").contentType(MediaType.APPLICATION_JSON_VALUE)
                         .content("""
                                 {
                                   "eventName": "Spring Festival",
@@ -81,7 +76,7 @@ class EventsControllerTest {
 
   when(eventService.updateEvent(eq(2L), any(UpdateEventDto.class))).thenReturn(dto);
 
-  mockMvc.perform(put("/api/events/2").contentType(MediaType.APPLICATION_JSON_VALUE)
+  mockMvc.perform(put("/api/v1/events/2").contentType(MediaType.APPLICATION_JSON_VALUE)
       .content("""
         {
           "eventName": "Updated Event",
@@ -117,7 +112,7 @@ class EventsControllerTest {
     when(eventAuditService.getRecentForEvent(eq(99L), anyInt()))
         .thenReturn(java.util.List.of(newer, older));
 
-    mockMvc.perform(get("/api/events/99/audits").param("limit", "2"))
+  mockMvc.perform(get("/api/v1/events/99/audits").param("limit", "2"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$[0].id").value(2L))
         .andExpect(jsonPath("$[0].action").value("UPDATE"))

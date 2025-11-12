@@ -25,7 +25,7 @@ import java.util.Map;
 import java.util.Optional;
 
 @RestController
-@RequestMapping("/api/events")
+@RequestMapping("/api/v1/events") // API versioned base path (added v1)
 //Triggers validation of parameters that have constraint annotations (e.g., @NotNull, @Size) and supports validation groups.
 @Validated
 public class EventsController {
@@ -44,7 +44,7 @@ public class EventsController {
     // private HttpServletRequest request; // unused
 
     //Post /api/events
-    @PostMapping
+    @PostMapping // POST /api/v1/events
     @PreAuthorize("hasAnyRole('ADMIN','EDITOR')")
     public ResponseEntity<EventDetailDto> createEvent(@RequestBody @Valid CreateEventDto dto) {
         log.info("POST /api/events called");
@@ -65,7 +65,7 @@ public class EventsController {
     }
 
     //Get /api/events/{id}
-    @GetMapping("/{id}")
+    @GetMapping("/{id}") // GET /api/v1/events/{id}
     public ResponseEntity<EventDetailDto> getEvent(@PathVariable("id") Long eventId) {
         log.info("GET /api/events/{}", eventId);
         Optional<EventDetailDto> found = eventService.getEventById(eventId);
@@ -76,7 +76,7 @@ public class EventsController {
     }
 
     //Put /api/events/{id}
-    @PutMapping("/{id}")
+    @PutMapping("/{id}") // PUT /api/v1/events/{id}
     @PreAuthorize("hasAnyRole('ADMIN','EDITOR')")
     public ResponseEntity<EventDetailDto> updateEvent(@PathVariable("id") Long eventId, @RequestBody @Valid UpdateEventDto dto) {
         log.info("PUT /api/events/{}", eventId);
@@ -85,7 +85,7 @@ public class EventsController {
     }
 
     //Delete /api/events/{id}
-    @DeleteMapping("/{id}")
+    @DeleteMapping("/{id}") // DELETE /api/v1/events/{id}
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deleteEvent(@PathVariable("id") Long eventId) {
         log.info("DELETE /api/events/{}", eventId);
@@ -94,7 +94,7 @@ public class EventsController {
     }
 
     @Operation(summary = "List events", description = "Supports paging, sorting, and arbitrary query-string filters.")
-    @GetMapping
+    @GetMapping // GET /api/v1/events
     public List<EventDto> listEvents(
             @RequestParam(name = "page", required = false, defaultValue = "0") int page,
             @RequestParam(name = "size", required = false, defaultValue = "20") int size,
@@ -110,7 +110,7 @@ public class EventsController {
     }
 
     // GET /api/events/{id}/audits  (read-only audit trail)
-    @GetMapping("/{id}/audits")
+    @GetMapping("/{id}/audits") // GET /api/v1/events/{id}/audits
     public ResponseEntity<java.util.List<EventAuditDto>> getEventAudits(@PathVariable("id") Long eventId,
                                                                         @RequestParam(name = "limit", required = false, defaultValue = "10") int limit) {
         var audits = eventAuditService.getRecentForEvent(eventId, limit)

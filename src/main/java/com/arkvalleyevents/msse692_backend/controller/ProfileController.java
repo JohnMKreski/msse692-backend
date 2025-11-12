@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/profile")
+@RequestMapping("/api/v1/profile") // API versioned base path (added v1)
 public class ProfileController {
 
     private final ProfileService profileService;
@@ -26,7 +26,7 @@ public class ProfileController {
         this.profileService = profileService;
     }
 
-    @GetMapping("/me")
+    @GetMapping("/me") // GET /api/v1/profile/me
     public ResponseEntity<?> getMyProfile(Authentication authentication) {
         String uid = extractUid(authentication);
         return profileService.getCurrentProfile(uid)
@@ -35,7 +35,7 @@ public class ProfileController {
                 .body(error("PROFILE_NOT_FOUND", "No profile exists for this user")));
     }
 
-    @PostMapping
+    @PostMapping // POST /api/v1/profile
     public ResponseEntity<?> upsertMyProfile(Authentication authentication, @Valid @RequestBody ProfileRequest request) {
         String uid = extractUid(authentication);
         boolean existed = profileService.getCurrentProfile(uid).isPresent();

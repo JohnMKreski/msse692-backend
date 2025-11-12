@@ -1,13 +1,9 @@
 package com.arkvalleyevents.msse692_backend.dto.request;
 
 import com.arkvalleyevents.msse692_backend.model.EventType;
-import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.util.Set;
 
 @Data
 @NoArgsConstructor
