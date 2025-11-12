@@ -1,4 +1,4 @@
-package com.arkvalleyevents.msse692_backend.config;
+package com.arkvalleyevents.msse692_backend.util;
 
 import java.util.Optional;
 

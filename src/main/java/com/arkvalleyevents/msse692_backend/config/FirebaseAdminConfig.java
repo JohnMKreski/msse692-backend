@@ -12,6 +12,10 @@ import com.google.firebase.auth.FirebaseAuth;
 
 import jakarta.annotation.PostConstruct;
 
+/**
+ * Initializes Firebase Admin SDK using Application Default Credentials and exposes FirebaseApp and FirebaseAuth beans
+ */
+
 @Configuration
 public class FirebaseAdminConfig {
     @PostConstruct

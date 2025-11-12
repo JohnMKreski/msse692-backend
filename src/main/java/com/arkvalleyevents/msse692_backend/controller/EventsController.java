@@ -19,7 +19,9 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -137,9 +139,13 @@ public class EventsController {
 
     // Public upcoming feed (only PUBLISHED future events)
     @GetMapping("/public-upcoming") // GET /api/v1/events/public-upcoming?from=ISO&limit=10
-    public List<EventDto> listPublicUpcoming(@RequestParam(name = "from", required = false) String from,
+    public List<EventDto> listPublicUpcoming(
+            @RequestParam(name = "from", required = false) Instant from,
             @RequestParam(name = "limit", required = false, defaultValue = "10") int limit) {
-        LocalDateTime start = (from == null || from.isBlank()) ? LocalDateTime.now() : LocalDateTime.parse(from);
+        // Accept full ISO-8601 instants (e.g., 2025-11-12T21:16:46.100Z). Spring will bind to Instant.
+        // Convert to UTC LocalDateTime to match service contract.
+        Instant effectiveFrom = (from == null) ? Instant.now() : from;
+        LocalDateTime start = LocalDateTime.ofInstant(effectiveFrom, ZoneOffset.UTC);
         int effectiveLimit = Math.min(Math.max(limit, 1), 100); // clamp 1..100
         if (effectiveLimit != limit) {
             log.debug("Clamped public-upcoming limit from {} to {}", limit, effectiveLimit);

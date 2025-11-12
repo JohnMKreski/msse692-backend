@@ -8,6 +8,11 @@ import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
+import com.arkvalleyevents.msse692_backend.util.CurrentAuditor;
+
+/**
+ * Enables JPA auditing and provides an AuditorAware<Long> that resolves the current user ID via CurrentAuditor (and optionally via a JWT claim).
+ */
 
 @Configuration
 @EnableJpaAuditing(auditorAwareRef = "appUserAuditorAware")

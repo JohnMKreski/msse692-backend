@@ -4,6 +4,7 @@ import com.arkvalleyevents.msse692_backend.model.AppUser;
 import com.arkvalleyevents.msse692_backend.model.Profile;
 import com.arkvalleyevents.msse692_backend.repository.AppUserRepository;
 import com.arkvalleyevents.msse692_backend.repository.ProfileRepository;
+import com.arkvalleyevents.msse692_backend.util.CurrentAuditor;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;

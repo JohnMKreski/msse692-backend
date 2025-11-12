@@ -39,15 +39,18 @@ public class ProfileServiceImpl implements ProfileService {
             if (StringUtils.hasText(request.getDisplayName())) {
                 p.setDisplayName(request.getDisplayName().trim());
             }
-            p.setCompleted(true);
-            return profileRepository.save(p);
+            // Completed when we have a display name
+            p.setCompleted(StringUtils.hasText(p.getDisplayName()));
+            return profileRepository.saveAndFlush(p);
         } else {
             Profile p = new Profile();
             p.setUser(user);
-            p.setDisplayName(request.getDisplayName().trim());
-            p.setCompleted(true);
+            String name = StringUtils.hasText(request.getDisplayName()) ? request.getDisplayName().trim() : null;
+            p.setDisplayName(name);
+            // Completed when we have a display name
+            p.setCompleted(StringUtils.hasText(name));
             // Verified flag will be mapped later from Firebase; default false
-            return profileRepository.save(p);
+            return profileRepository.saveAndFlush(p);
         }
     }
 }
