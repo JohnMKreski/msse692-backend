@@ -15,6 +15,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -188,9 +189,12 @@ public class EventServiceImpl implements EventService {
         Pageable pageable = PageRequest.of(Math.max(page, 0), Math.max(size, 1), parseSort(sort));
         log.debug("Listing events with filters={}, page={}, size={}, sort='{}'", filters, page, size, sort);
 
-        Page<Event> pageResult = eventRepository.findAll(pageable);
-        List<EventDto> events = pageResult.stream().map(mapper::toDto).toList();
+        Specification<Event> spec = buildSpecification(filters);
+        Page<Event> pageResult = (spec == null)
+                ? eventRepository.findAll(pageable)
+                : eventRepository.findAll(spec, pageable);
 
+        List<EventDto> events = pageResult.stream().map(mapper::toDto).toList();
         log.info("Listed {} events (page={}, size={})", events.size(), page, size);
         return events;
     }
@@ -313,6 +317,75 @@ public class EventServiceImpl implements EventService {
             return Sort.by(Sort.Direction.ASC, s.substring(0, s.length() - 4));
         }
         return Sort.by(Sort.Direction.ASC, s);
+    }
+
+    private Specification<Event> buildSpecification(Map<String, String> filters) {
+        if (filters == null || filters.isEmpty()) {
+            return null; // no constraints; let repository use simple findAll(pageable)
+        }
+
+        // Parse common filters up front
+        String statusStr = filters.get("status");
+        String ownerStr = filters.get("createdByUserId");
+        boolean ownerOrPublished = Boolean.parseBoolean(filters.getOrDefault("ownerOrPublished", "false"));
+        String fromStr = filters.get("from");
+        String toStr = filters.get("to");
+
+        // Build specification
+        Specification<Event> spec = (root, query, cb) -> cb.conjunction();
+
+        // Visibility: either explicit status/owner AND-ed, or special ownerOrPublished OR logic
+        if (ownerOrPublished && ownerStr != null && !ownerStr.isBlank() && (statusStr == null || statusStr.isBlank())) {
+            try {
+                Long ownerId = Long.parseLong(ownerStr.trim());
+                Specification<Event> ownerPredicate = (r, q, cbx) -> cbx.equal(r.get("createdByUserId"), ownerId);
+                Specification<Event> publishedPredicate = (r, q, cbx) -> cbx.equal(r.get("status"), EventStatus.PUBLISHED);
+                spec = spec.and(ownerPredicate.or(publishedPredicate));
+            } catch (NumberFormatException ex) {
+                log.debug("Ignoring invalid createdByUserId for ownerOrPublished: {}", ownerStr);
+            }
+        } else {
+            // status filter (any caller can set this; controllers decide policy)
+            if (statusStr != null && !statusStr.isBlank()) {
+                try {
+                    EventStatus status = EventStatus.fromString(statusStr);
+                    if (status != null) {
+                        spec = spec.and((root, query, cbx) -> cbx.equal(root.get("status"), status));
+                    }
+                } catch (IllegalArgumentException ignored) {
+                    log.debug("Ignoring invalid status filter: {}", statusStr);
+                }
+            }
+            // createdBy filter (for EDITOR scope)
+            if (ownerStr != null && !ownerStr.isBlank()) {
+                try {
+                    Long ownerId = Long.parseLong(ownerStr.trim());
+                    spec = spec.and((root, query, cbx) -> cbx.equal(root.get("createdByUserId"), ownerId));
+                } catch (NumberFormatException ex) {
+                    log.debug("Ignoring invalid createdByUserId filter: {}", ownerStr);
+                }
+            }
+        }
+
+        // Optional date range filters (ISO-8601 LocalDateTime)
+        if (fromStr != null && !fromStr.isBlank()) {
+            try {
+                LocalDateTime from = LocalDateTime.parse(fromStr.trim());
+                spec = spec.and((root, query, cbx) -> cbx.greaterThanOrEqualTo(root.get("startAt"), from));
+            } catch (Exception ex) {
+                log.debug("Ignoring invalid 'from' filter: {}", fromStr);
+            }
+        }
+        if (toStr != null && !toStr.isBlank()) {
+            try {
+                LocalDateTime to = LocalDateTime.parse(toStr.trim());
+                spec = spec.and((root, query, cbx) -> cbx.lessThanOrEqualTo(root.get("startAt"), to));
+            } catch (Exception ex) {
+                log.debug("Ignoring invalid 'to' filter: {}", toStr);
+            }
+        }
+
+        return spec;
     }
 
     // =========================

@@ -24,6 +24,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -54,15 +55,17 @@ class EventServiceImplTest {
         newEventDto = new CreateEventDto();
         newEventDto.setEventName("Spring Bash 2025");
         newEventDto.setType(EventType.CONCERT);
-        newEventDto.setStartAt(LocalDateTime.of(2025, 3, 21, 18, 0));
-        newEventDto.setEndAt(LocalDateTime.of(2025, 3, 21, 21, 0));
+    // DTO now uses Instant; choose fixed instants corresponding to the intended local times
+    newEventDto.setStartAt(Instant.parse("2025-03-22T01:00:00Z"));
+    newEventDto.setEndAt(Instant.parse("2025-03-22T04:00:00Z"));
         newEventDto.setEventLocation("Salida, CO");
 
         mappedNewEntity = new Event();
         mappedNewEntity.setEventName(newEventDto.getEventName());
         mappedNewEntity.setEventLocation(newEventDto.getEventLocation());
-        mappedNewEntity.setStartAt(newEventDto.getStartAt());
-        mappedNewEntity.setEndAt(newEventDto.getEndAt());
+    // Entity uses LocalDateTime; mapper handles conversion in production code, but here we return a stub entity
+    mappedNewEntity.setStartAt(LocalDateTime.of(2025, 3, 21, 18, 0));
+    mappedNewEntity.setEndAt(LocalDateTime.of(2025, 3, 21, 21, 0));
         mappedNewEntity.setEventType(newEventDto.getType());
         mappedNewEntity.setStatus(EventStatus.DRAFT);
     }

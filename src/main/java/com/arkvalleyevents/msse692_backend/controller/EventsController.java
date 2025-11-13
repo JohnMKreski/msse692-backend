@@ -26,6 +26,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import com.arkvalleyevents.msse692_backend.util.CurrentAuditor;
 
 @RestController
 @RequestMapping("/api/v1/events") // API versioned base path (added v1)
@@ -72,10 +73,31 @@ public class EventsController {
     public ResponseEntity<EventDetailDto> getEvent(@PathVariable("id") Long eventId) {
         log.info("GET /api/events/{}", eventId);
         Optional<EventDetailDto> found = eventService.getEventById(eventId);
-        //Return =
-        //If the Optional contains an event, wrap it in ResponseEntity.ok(...) → HTTP 200.
-        //If it’s empty, return ResponseEntity.notFound().build() → HTTP 404.
-        return found.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
+        if (found.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        EventDetailDto dto = found.get();
+        // Visibility rules:
+        // - ADMIN: can view all
+        // - EDITOR: can view only events they created
+        // - Anonymous/USER: only PUBLISHED
+        if (isAdmin()) {
+            return ResponseEntity.ok(dto);
+        }
+        if (isEditor()) {
+            Long uid = currentUserId().orElse(null);
+            if (uid != null && uid.equals(dto.getCreatedByUserId())) {
+                return ResponseEntity.ok(dto);
+            }
+            log.debug("Hiding event ID={} from EDITOR not owning it (ownerId={}, viewerId={})", eventId, dto.getCreatedByUserId(), uid);
+            return ResponseEntity.notFound().build();
+        }
+        // Anonymous or USER: only PUBLISHED
+        if (dto.getStatus() == com.arkvalleyevents.msse692_backend.model.EventStatus.PUBLISHED) {
+            return ResponseEntity.ok(dto);
+        }
+        log.debug("Hiding non-public event ID={} from anonymous/USER", eventId);
+        return ResponseEntity.notFound().build();
     }
 
     //Put /api/events/{id}
@@ -133,6 +155,28 @@ public class EventsController {
         filters.remove("page");
         filters.remove("size");
         filters.remove("sort");
+        // Role-aware defaults
+        if (isAdmin()) {
+            // no default constraints; ADMIN sees all unless client filters
+        } else if (isEditor()) {
+            Long uid = currentUserId().orElse(null);
+            if (uid != null) {
+                // Constrain to events created by this editor
+                filters.put("createdByUserId", String.valueOf(uid));
+                // By default, also include all PUBLISHED events so editors see the calendar like public plus their drafts
+                if (!filters.containsKey("status")) {
+                    filters.put("ownerOrPublished", "true");
+                }
+            } else {
+                // If somehow no user id is available, return empty by constraining to impossible id
+                filters.put("createdByUserId", "-1");
+            }
+        } else {
+            // Anonymous/USER: default to only PUBLISHED unless explicitly provided
+            if (!filters.containsKey("status")) {
+                filters.put("status", com.arkvalleyevents.msse692_backend.model.EventStatus.PUBLISHED.name());
+            }
+        }
 
         return eventService.listEvents(filters, Math.max(page, 0), Math.max(size, 1), sort);
     }
@@ -172,4 +216,21 @@ public class EventsController {
         return ResponseEntity.ok(audits);
     }
 
+    private boolean isAdmin() {
+        var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated()) return false;
+        return auth.getAuthorities().stream().map(org.springframework.security.core.GrantedAuthority::getAuthority)
+                .anyMatch(a -> "ROLE_ADMIN".equals(a));
+    }
+
+    private boolean isEditor() {
+        var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated()) return false;
+        return auth.getAuthorities().stream().map(org.springframework.security.core.GrantedAuthority::getAuthority)
+                .anyMatch(a -> "ROLE_EDITOR".equals(a));
+    }
+
+    private Optional<Long> currentUserId() {
+        return CurrentAuditor.get();
+    }
 }
