@@ -55,7 +55,7 @@ src/main/java/com/arkvalleyevents/msse692_backend
 ### Run Locally (Dev Profile with H2)
 
 ```bash
-mvn spring-boot:run
+mvn -Pdev spring-boot:run
 ```
 
 API will be available at: [http://localhost:8080](http://localhost:8080)
@@ -69,7 +69,27 @@ export DB_URL=jdbc:postgresql://localhost:5432/arkve
 export DB_USER=youruser
 export DB_PASS=yourpass
 
-mvn spring-boot:run -Dspring-boot.run.profiles=prod
+mvn -Pprod spring-boot:run
+
+### Run with PostgreSQL (Local Profile)
+
+For local development using your local Postgres and Firebase tokens, set the same env vars, then:
+
+```bash
+mvn -Plocal spring-boot:run
+```
+
+### Windows convenience scripts (clean + run)
+
+From the `msse692-backend` folder, you can also use the provided `.cmd` scripts which perform a clean compile before starting:
+
+```cmd
+./run-dev.cmd
+./run-local.cmd
+./run-prod.cmd
+REM Or generic:
+./run-profile.cmd dev|local|prod
+```
 ```
 
 ---

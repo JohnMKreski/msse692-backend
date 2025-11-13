@@ -3,36 +3,45 @@ package com.arkvalleyevents.msse692_backend.model;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 import lombok.NoArgsConstructor;
+import lombok.EqualsAndHashCode;
 import lombok.ToString;
 import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.CreatedBy;
 import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.annotation.LastModifiedBy;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.util.HashSet;
 import java.util.Set;
 
 @Entity
-//Data annotation generates getters, setters, toString, equals, and hashCode methods
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
+@ToString(onlyExplicitlyIncluded = true)
 @EntityListeners(AuditingEntityListener.class)
 public class Event {
 
     //========== Fields ==========
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @EqualsAndHashCode.Include
+    @ToString.Include
     private Long eventId;
 
     @Column(unique = true, nullable = false, length = 255)
+    @ToString.Include
     private String slug; // URL-friendly unique identifier, e.g., "summer-music-fest-2023"
 
     @NotBlank
     @Column(length = 255)
+    @ToString.Include
     private String eventName;
 
     @Enumerated(EnumType.STRING)  // Store enum as readable text in DB
@@ -65,6 +74,16 @@ public class Event {
 
     @Version
     private Long version;
+
+    // Ownership principal IDs (FK columns created_by, last_modified_by)
+    // Populated via AuditorAware<Long>
+    @CreatedBy
+    @Column(name = "created_by")
+    private Long createdByUserId;
+
+    @LastModifiedBy
+    @Column(name = "last_modified_by")
+    private Long lastModifiedByUserId;
 
 
 

@@ -6,6 +6,9 @@ import com.arkvalleyevents.msse692_backend.dto.response.EventDetailDto;
 import com.arkvalleyevents.msse692_backend.dto.response.EventDto;
 import com.arkvalleyevents.msse692_backend.model.Event;
 import org.mapstruct.*;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 @Mapper(
         componentModel = "spring",
@@ -33,7 +36,7 @@ public interface EventMapper {
     @Mapping(target = "venue", ignore = true)
     @Mapping(target = "artists", ignore = true)
 
-    Event toEntity(CreateEventDto src);
+        Event toEntity(CreateEventDto src);
 
     // -------- Update (partial merge; ignores nulls) --------
     // Pass the entity to update as the first parameter, the DTO as the second
@@ -73,6 +76,13 @@ public interface EventMapper {
             // If VenueDto/ArtistDto are mapped via used mappers, no extra mapping needed here
     })
     EventDetailDto toDetailDto(Event src);
+
+        // ====== Type conversions for MapStruct ======
+        default LocalDateTime instantToLocalDateTime(Instant instant) {
+                if (instant == null) return null;
+                // Convert to server default zone (configure JVM TZ or provide custom ZoneId if needed)
+                return LocalDateTime.ofInstant(instant, ZoneId.systemDefault());
+        }
 
 }
 

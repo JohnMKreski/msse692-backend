@@ -2,15 +2,11 @@ package com.arkvalleyevents.msse692_backend.dto.response;
 
 import com.arkvalleyevents.msse692_backend.model.EventStatus;
 import com.arkvalleyevents.msse692_backend.model.EventType;
-import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.Instant;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.util.Set;
 
 /**
  * Composes VenueDto and ArtistDto instead of duplicating their fields.
@@ -45,4 +41,8 @@ public class EventDetailDto {
 
     private Instant createdAt;
     private Instant updatedAt;
+
+    // Ownership (populated by JPA auditing)
+    private Long createdByUserId;
+    private Long lastModifiedByUserId;
 }

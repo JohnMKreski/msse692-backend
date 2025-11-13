@@ -20,8 +20,21 @@ spring:
       ddl-auto: update
     show-sql: true
     properties.hibernate.format_sql: true
+  flyway:
+    enabled: false # Disable Flyway in dev (H2) to avoid PostgreSQL-specific SQL like TIMESTAMPTZ
   h2:
     console.enabled: true
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: https://securetoken.google.com/${FIREBASE_PROJECT_ID}
+app:
+  security:
+    firebase:
+      audience: ${FIREBASE_PROJECT_ID}
+  cors:
+    allowed-origins: http://localhost:4200
 
 ---
 spring:
@@ -50,6 +63,8 @@ app:
   security:
     firebase:
       audience: ${FIREBASE_PROJECT_ID}
+  cors:
+    allowed-origins: https://app.example.com,https://www.app.example.com
 management:
   endpoints.web.exposure.include: health,info
 logging:
@@ -88,6 +103,8 @@ app:
   security:
     firebase:
       audience: ${FIREBASE_PROJECT_ID}
+  cors:
+    allowed-origins: http://localhost:4200
 logging:
   level:
     root: INFO

@@ -2,13 +2,9 @@ package com.arkvalleyevents.msse692_backend.dto.response;
 
 import com.arkvalleyevents.msse692_backend.model.EventStatus;
 import com.arkvalleyevents.msse692_backend.model.EventType;
-import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.util.Set;
 
 @Data
 @NoArgsConstructor
@@ -29,6 +25,10 @@ public class EventDto {
 
     private String eventLocation;
 //    private String eventDescription; TODO: Consider adding a short description field for listing views
+
+    // Ownership (populated by JPA auditing)
+    private Long createdByUserId;
+    private Long lastModifiedByUserId;
 
     // Flattened relationships
 //    private String venueName;
