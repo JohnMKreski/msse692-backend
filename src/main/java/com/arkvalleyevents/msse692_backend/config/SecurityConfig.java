@@ -60,6 +60,8 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/actuator/health", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/events/public-upcoming").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/events").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/events/*").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/enums/**").permitAll()
                 .anyRequest().authenticated()
             )
@@ -102,6 +104,8 @@ public class SecurityConfig {
                     "/swagger-ui.html"
                 ).permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/events/public-upcoming").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/events").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/events/*").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/enums/**").permitAll()
                 .anyRequest().authenticated()
             )
