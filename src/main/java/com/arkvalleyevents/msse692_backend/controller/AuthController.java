@@ -2,6 +2,10 @@ package com.arkvalleyevents.msse692_backend.controller;
 
 import java.util.HashMap;
 import java.util.Map;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -10,9 +14,14 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/auth") // API versioned base path (added v1)
+@Tag(name = "Auth", description = "Authentication debug utilities")
 public class AuthController {
 
     @GetMapping("/whoami") // GET /api/v1/auth/whoami
+    @Operation(summary = "Who am I", description = "Returns authentication details for the current request (debug utility).")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "OK")
+    })
     public Map<String, Object> whoAmI(Authentication auth) {
         Map<String, Object> out = new HashMap<>();
         if (auth == null) {

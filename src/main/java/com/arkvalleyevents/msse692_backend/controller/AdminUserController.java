@@ -1,5 +1,6 @@
 package com.arkvalleyevents.msse692_backend.controller;
 
+import com.arkvalleyevents.msse692_backend.dto.response.ApiErrorDto;
 import com.arkvalleyevents.msse692_backend.model.AppUser;
 import com.arkvalleyevents.msse692_backend.repository.AppUserRepository;
 import com.arkvalleyevents.msse692_backend.service.FirebaseClaimsSyncService;
@@ -11,6 +12,12 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -21,6 +28,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 @RequestMapping("/api/admin/users")
+@Tag(name = "Admin Users", description = "Admin-only user role management")
 public class AdminUserController {
 
     private static final Logger log = LoggerFactory.getLogger(AdminUserController.class);
@@ -62,6 +70,13 @@ public class AdminUserController {
 
     @GetMapping("/{uid}/roles")
     @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Get user roles", description = "Returns the roles assigned to the specified user (ADMIN only).")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "OK",
+            content = @Content(schema = @Schema(implementation = RolesResponse.class))),
+        @ApiResponse(responseCode = "404", description = "Not Found",
+            content = @Content(schema = @Schema(implementation = ApiErrorDto.class)))
+    })
     public RolesResponse getRoles(@PathVariable String uid) {
         AppUser user = getUserOr404(uid);
         return new RolesResponse(user.getFirebaseUid(), user.getRoles());
@@ -69,6 +84,15 @@ public class AdminUserController {
 
     @PostMapping("/{uid}/roles")
     @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Add roles to user", description = "Adds validated roles to a user and triggers claims sync (ADMIN only).")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "OK",
+            content = @Content(schema = @Schema(implementation = RolesResponse.class))),
+        @ApiResponse(responseCode = "400", description = "Bad Request",
+            content = @Content(schema = @Schema(implementation = ApiErrorDto.class))),
+        @ApiResponse(responseCode = "404", description = "Not Found",
+            content = @Content(schema = @Schema(implementation = ApiErrorDto.class)))
+    })
     public RolesResponse addRoles(@PathVariable String uid, @RequestBody RolesRequest body) {
         AppUser user = getUserOr404(uid);
         Set<String> toAdd = normalizeRoles(body != null ? body.roles() : null);
@@ -91,6 +115,15 @@ public class AdminUserController {
 
     @DeleteMapping("/{uid}/roles/{role}")
     @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Remove role from user", description = "Removes a role from the user (ADMIN only). Returns 200 or 304 if role absent.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "OK"),
+        @ApiResponse(responseCode = "304", description = "Not Modified"),
+        @ApiResponse(responseCode = "400", description = "Bad Request",
+            content = @Content(schema = @Schema(implementation = ApiErrorDto.class))),
+        @ApiResponse(responseCode = "404", description = "Not Found",
+            content = @Content(schema = @Schema(implementation = ApiErrorDto.class)))
+    })
     public ResponseEntity<?> removeRole(@PathVariable String uid, @PathVariable String role) {
         AppUser user = getUserOr404(uid);
         String normalized = role == null ? null : role.trim().toUpperCase(Locale.ROOT);
@@ -111,6 +144,12 @@ public class AdminUserController {
 
     @PostMapping("/{uid}/roles/sync")
     @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Sync user role claims", description = "Triggers Firebase role claims sync for a user (ADMIN only).")
+    @ApiResponses({
+        @ApiResponse(responseCode = "202", description = "Accepted"),
+        @ApiResponse(responseCode = "404", description = "Not Found",
+            content = @Content(schema = @Schema(implementation = ApiErrorDto.class)))
+    })
     public ResponseEntity<?> syncRolesClaims(@PathVariable String uid, @RequestParam(name = "force", defaultValue = "false") boolean force) {
         AppUser user = getUserOr404(uid);
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();

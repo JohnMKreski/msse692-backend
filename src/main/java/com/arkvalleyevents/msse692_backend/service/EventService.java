@@ -5,6 +5,7 @@ import com.arkvalleyevents.msse692_backend.dto.request.UpdateEventDto;
 import com.arkvalleyevents.msse692_backend.dto.response.EventDto;
 import com.arkvalleyevents.msse692_backend.dto.response.EventDetailDto;
 import com.arkvalleyevents.msse692_backend.model.EventType;
+import org.springframework.data.domain.Page;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -47,6 +48,9 @@ public interface EventService {
      * - page/size/sort: simple paging if you’re not using Pageable
      */
     List<EventDto> listEvents(Map<String, String> filters, int page, int size, String sort);
+
+    /** Like listEvents, but returns a Spring Page so callers can expose metadata. */
+    Page<EventDto> listEventsPage(Map<String, String> filters, int page, int size, String sort);
 
     /** Lightweight helper for “what’s coming up from time X” with a hard cap. */
     List<EventDto> listUpcoming(LocalDateTime from, int limit);

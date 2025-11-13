@@ -201,6 +201,22 @@ public class EventServiceImpl implements EventService {
 
     @Override
     @Transactional(readOnly = true)
+    public Page<EventDto> listEventsPage(Map<String, String> filters, int page, int size, String sort) {
+        Pageable pageable = PageRequest.of(Math.max(page, 0), Math.max(size, 1), parseSort(sort));
+        log.debug("Listing events (paged) with filters={}, page={}, size={}, sort='{}'", filters, page, size, sort);
+
+        Specification<Event> spec = buildSpecification(filters);
+        Page<Event> pageResult = (spec == null)
+                ? eventRepository.findAll(pageable)
+                : eventRepository.findAll(spec, pageable);
+
+        Page<EventDto> dtoPage = pageResult.map(mapper::toDto);
+        log.info("Listed {} events (paged) of total {} (page={}, size={})", dtoPage.getNumberOfElements(), dtoPage.getTotalElements(), page, size);
+        return dtoPage;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<EventDto> listUpcoming(LocalDateTime from, int limit) {
         Pageable pageable = PageRequest.of(0, Math.max(limit, 1), Sort.by(Sort.Direction.ASC, "startAt"));
         log.debug("Listing upcoming events starting after {} (limit={})", from, limit);
