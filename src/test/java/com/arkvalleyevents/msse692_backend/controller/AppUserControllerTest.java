@@ -7,8 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.arkvalleyevents.msse692_backend.model.AppUser;
 import com.arkvalleyevents.msse692_backend.repository.AppUserRepository;
 import com.arkvalleyevents.msse692_backend.repository.ProfileRepository;
-import com.arkvalleyevents.msse692_backend.security.context.UserContext;
-import com.arkvalleyevents.msse692_backend.security.context.UserContextProvider;
+ 
 import com.arkvalleyevents.msse692_backend.service.AppUserService;
 import java.util.Optional;
 import java.util.Set;
@@ -37,15 +36,10 @@ class AppUserControllerTest {
     private ProfileRepository profileRepository; // required by AppUserUpsertFilter
 
     @MockitoBean
-    private UserContextProvider userContextProvider;
-
-    @MockitoBean
     private AppUserService appUserService;
 
     @BeforeEach
-    void setupDefaults() {
-        when(userContextProvider.current()).thenReturn(new UserContext(10L, false, false));
-    }
+    void setupDefaults() {}
 
     @Test
     void me_found_returns200() throws Exception {

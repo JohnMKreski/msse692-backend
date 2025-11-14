@@ -7,4 +7,8 @@ import java.util.Optional;
 public interface ProfileService {
     Optional<Profile> getCurrentProfile(String firebaseUid);
     Profile upsertProfile(String firebaseUid, ProfileRequest request);
+
+    // Context-based convenience methods (preferred)
+    Optional<Profile> getCurrentProfile();
+    Profile upsertCurrentProfile(ProfileRequest request);
 }
