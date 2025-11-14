@@ -39,4 +39,15 @@ public class UserContextProvider {
         }
         return new UserContext(userId, admin, editor);
     }
+
+    /**
+     * Returns the current user id or throws IllegalStateException("UNAUTHENTICATED") if absent.
+     */
+    public Long requireUserId() {
+        Long id = current().userId();
+        if (id == null) {
+            throw new IllegalStateException("UNAUTHENTICATED");
+        }
+        return id;
+    }
 }
