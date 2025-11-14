@@ -7,6 +7,8 @@ import com.arkvalleyevents.msse692_backend.dto.response.EventDto;
 import com.arkvalleyevents.msse692_backend.model.EventType;
 import com.arkvalleyevents.msse692_backend.service.EventService;
 import com.arkvalleyevents.msse692_backend.service.EventAuditService;
+import com.arkvalleyevents.msse692_backend.security.policy.EventListPolicy;
+import com.arkvalleyevents.msse692_backend.security.context.UserContext;
 
 import jakarta.persistence.EntityNotFoundException;
 
@@ -43,11 +45,13 @@ public class EventServiceImpl implements EventService {
     private final EventRepository eventRepository;
     private final EventMapper mapper;
     private final EventAuditService auditService;
+    private final EventListPolicy eventListPolicy;
 
-    public EventServiceImpl(EventRepository eventRepository, @Qualifier("eventMapperImpl") EventMapper mapper, EventAuditService auditService) {
+    public EventServiceImpl(EventRepository eventRepository, @Qualifier("eventMapperImpl") EventMapper mapper, EventAuditService auditService, EventListPolicy eventListPolicy) {
         this.eventRepository = eventRepository;
         this.mapper = mapper;
         this.auditService = auditService;
+        this.eventListPolicy = eventListPolicy;
     }
 
     //=========================
@@ -173,6 +177,16 @@ public class EventServiceImpl implements EventService {
         return eventRepository.findById(eventId).map(mapper::toDetailDto);
     }
 
+        @Override
+        @Transactional(readOnly = true)
+        public EventDetailDto getEventDetailOrThrow(Long eventId) {
+        log.debug("Fetching event by ID={} (strict)", eventId);
+        Event e = eventRepository.findById(eventId)
+            .orElseThrow(() -> new EntityNotFoundException("Event not found: " + eventId));
+        log.info("Event retrieved successfully (ID={}, status={})", e.getEventId(), e.getStatus());
+        return mapper.toDetailDto(e);
+        }
+
     @Override
     @Transactional(readOnly = true)
     public EventDetailDto getEventBySlug(String slug) {
@@ -212,6 +226,23 @@ public class EventServiceImpl implements EventService {
 
         Page<EventDto> dtoPage = pageResult.map(mapper::toDto);
         log.info("Listed {} events (paged) of total {} (page={}, size={})", dtoPage.getNumberOfElements(), dtoPage.getTotalElements(), page, size);
+        return dtoPage;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<EventDto> listEventsPageScoped(Map<String, String> filters, int page, int size, String sort, UserContext userContext) {
+        Map<String, String> scoped = eventListPolicy.applyListDefaults(filters, userContext);
+        Pageable pageable = PageRequest.of(Math.max(page, 0), Math.max(size, 1), parseSort(sort));
+        log.debug("Listing events (scoped) with filters={}, page={}, size={}, sort='{}'", scoped, page, size, sort);
+
+        Specification<Event> spec = buildSpecification(scoped);
+        Page<Event> pageResult = (spec == null)
+                ? eventRepository.findAll(pageable)
+                : eventRepository.findAll(spec, pageable);
+
+        Page<EventDto> dtoPage = pageResult.map(mapper::toDto);
+        log.info("Listed {} events (scoped) of total {} (page={}, size={})", dtoPage.getNumberOfElements(), dtoPage.getTotalElements(), page, size);
         return dtoPage;
     }
 

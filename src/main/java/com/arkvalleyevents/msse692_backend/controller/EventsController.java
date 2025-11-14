@@ -10,6 +10,9 @@ import com.arkvalleyevents.msse692_backend.dto.response.EventPageResponse;
 import com.arkvalleyevents.msse692_backend.dto.response.PageMetadata;
 import com.arkvalleyevents.msse692_backend.service.EventAuditService;
 import com.arkvalleyevents.msse692_backend.service.EventService;
+import com.arkvalleyevents.msse692_backend.security.policy.EventAccessPolicy;
+import com.arkvalleyevents.msse692_backend.security.context.UserContext;
+import com.arkvalleyevents.msse692_backend.security.context.UserContextProvider;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
@@ -26,8 +29,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
-import org.springframework.http.HttpStatus;
-import org.springframework.web.server.ResponseStatusException;
+ 
 import org.springframework.data.domain.Page;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Max;
@@ -39,8 +41,7 @@ import java.time.ZoneOffset;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
-import com.arkvalleyevents.msse692_backend.util.CurrentAuditor;
+ 
 
 @RestController
 @RequestMapping("/api/v1/events") // API versioned base path (added v1)
@@ -53,10 +54,14 @@ public class EventsController {
     //Service
     private final EventService eventService;
     private final EventAuditService eventAuditService;
+    private final EventAccessPolicy eventAccessPolicy;
+    private final UserContextProvider userContextProvider;
 
-    public EventsController(EventService eventService, EventAuditService eventAuditService) {
+    public EventsController(EventService eventService, EventAuditService eventAuditService, EventAccessPolicy eventAccessPolicy, UserContextProvider userContextProvider) {
         this.eventService = eventService;
         this.eventAuditService = eventAuditService;
+        this.eventAccessPolicy = eventAccessPolicy;
+        this.userContextProvider = userContextProvider;
         log.info("EventsController initialized");
     }
 
@@ -101,32 +106,11 @@ public class EventsController {
     })
     public ResponseEntity<EventDetailDto> getEvent(@PathVariable("id") Long eventId) {
         log.info("GET /api/events/{}", eventId);
-        Optional<EventDetailDto> found = eventService.getEventById(eventId);
-        if (found.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Event not found");
-        }
-        EventDetailDto dto = found.get();
-        // Visibility rules:
-        // - ADMIN: can view all
-        // - EDITOR: can view only events they created
-        // - Anonymous/USER: only PUBLISHED
-        if (isAdmin()) {
-            return ResponseEntity.ok(dto);
-        }
-        if (isEditor()) {
-            Long uid = currentUserId().orElse(null);
-            if (uid != null && uid.equals(dto.getCreatedByUserId())) {
-                return ResponseEntity.ok(dto);
-            }
-            log.debug("Hiding event ID={} from EDITOR not owning it (ownerId={}, viewerId={})", eventId, dto.getCreatedByUserId(), uid);
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Event not found");
-        }
-        // Anonymous or USER: only PUBLISHED
-        if (dto.getStatus() == com.arkvalleyevents.msse692_backend.model.EventStatus.PUBLISHED) {
-            return ResponseEntity.ok(dto);
-        }
-        log.debug("Hiding non-public event ID={} from anonymous/USER", eventId);
-        throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Event not found");
+        EventDetailDto dto = eventService.getEventDetailOrThrow(eventId);
+        // Delegate visibility policy using UserContextProvider (only here for now)
+        UserContext uc = userContextProvider.current();
+        eventAccessPolicy.assertCanView(dto, java.util.Optional.ofNullable(uc.userId()), uc.admin(), uc.editor());
+        return ResponseEntity.ok(dto);
     }
 
     //Put /api/events/{id}
@@ -143,6 +127,9 @@ public class EventsController {
     })
     public ResponseEntity<EventDetailDto> updateEvent(@PathVariable("id") Long eventId, @RequestBody @Valid UpdateEventDto dto) {
         log.info("PUT /api/events/{}", eventId);
+        UserContext uc = userContextProvider.current();
+        EventDetailDto existing = eventService.getEventDetailOrThrow(eventId);
+        eventAccessPolicy.assertCanModify(existing, java.util.Optional.ofNullable(uc.userId()), uc.admin(), uc.editor());
         EventDetailDto updated = eventService.updateEvent(eventId, dto);
         return ResponseEntity.ok(updated);
     }
@@ -176,6 +163,9 @@ public class EventsController {
     })
     public ResponseEntity<EventDetailDto> publishEvent(@PathVariable("id") Long eventId) {
         log.info("POST /api/events/{}/publish", eventId);
+        UserContext uc = userContextProvider.current();
+        EventDetailDto existing = eventService.getEventDetailOrThrow(eventId);
+        eventAccessPolicy.assertCanModify(existing, java.util.Optional.ofNullable(uc.userId()), uc.admin(), uc.editor());
         EventDetailDto updated = eventService.publishEvent(eventId);
         return ResponseEntity.ok(updated);
     }
@@ -193,6 +183,9 @@ public class EventsController {
     })
     public ResponseEntity<EventDetailDto> unpublishEvent(@PathVariable("id") Long eventId) {
         log.info("POST /api/events/{}/unpublish", eventId);
+        UserContext uc = userContextProvider.current();
+        EventDetailDto existing = eventService.getEventDetailOrThrow(eventId);
+        eventAccessPolicy.assertCanModify(existing, java.util.Optional.ofNullable(uc.userId()), uc.admin(), uc.editor());
         EventDetailDto updated = eventService.unpublishEvent(eventId);
         return ResponseEntity.ok(updated);
     }
@@ -210,6 +203,9 @@ public class EventsController {
     })
     public ResponseEntity<EventDetailDto> cancelEvent(@PathVariable("id") Long eventId) {
         log.info("POST /api/events/{}/cancel", eventId);
+        UserContext uc = userContextProvider.current();
+        EventDetailDto existing = eventService.getEventDetailOrThrow(eventId);
+        eventAccessPolicy.assertCanModify(existing, java.util.Optional.ofNullable(uc.userId()), uc.admin(), uc.editor());
         EventDetailDto updated = eventService.cancelEvent(eventId);
         return ResponseEntity.ok(updated);
     }
@@ -234,30 +230,8 @@ public class EventsController {
         filters.remove("size");
         filters.remove("sort");
         String safeSort = normalizeSort(sort);
-        // Role-aware defaults
-        if (isAdmin()) {
-            // no default constraints; ADMIN sees all unless client filters
-        } else if (isEditor()) {
-            Long uid = currentUserId().orElse(null);
-            if (uid != null) {
-                // Constrain to events created by this editor
-                filters.put("createdByUserId", String.valueOf(uid));
-                // By default, also include all PUBLISHED events so editors see the calendar like public plus their drafts
-                if (!filters.containsKey("status")) {
-                    filters.put("ownerOrPublished", "true");
-                }
-            } else {
-                // If somehow no user id is available, return empty by constraining to impossible id
-                filters.put("createdByUserId", "-1");
-            }
-        } else {
-            // Anonymous/USER: default to only PUBLISHED unless explicitly provided
-            if (!filters.containsKey("status")) {
-                filters.put("status", com.arkvalleyevents.msse692_backend.model.EventStatus.PUBLISHED.name());
-            }
-        }
-
-        Page<EventDto> pageResult = eventService.listEventsPage(filters, Math.max(page, 0), Math.max(size, 1), safeSort);
+        UserContext uc = userContextProvider.current();
+        Page<EventDto> pageResult = eventService.listEventsPageScoped(filters, Math.max(page, 0), Math.max(size, 1), safeSort, uc);
         EventPageResponse out = new EventPageResponse();
         out.setItems(pageResult.getContent());
         PageMetadata meta = new PageMetadata();
@@ -285,7 +259,7 @@ public class EventsController {
             field = s.substring(0, s.length() - 4);
         }
         if (!ALLOWED_SORT_FIELDS.contains(field)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unsupported sort field: " + field);
+            throw new IllegalArgumentException("Unsupported sort field: " + field);
         }
         return s;
     }
@@ -302,16 +276,12 @@ public class EventsController {
     })
     public List<EventDto> listPublicUpcoming(
             @RequestParam(name = "from", required = false) Instant from,
-            @RequestParam(name = "limit", required = false, defaultValue = "10") int limit) {
+            @RequestParam(name = "limit", required = false, defaultValue = "10") @Min(1) @Max(100) int limit) {
         // Accept full ISO-8601 instants (e.g., 2025-11-12T21:16:46.100Z). Spring will bind to Instant.
         // Convert to UTC LocalDateTime to match service contract.
         Instant effectiveFrom = (from == null) ? Instant.now() : from;
         LocalDateTime start = LocalDateTime.ofInstant(effectiveFrom, ZoneOffset.UTC);
-        int effectiveLimit = Math.min(Math.max(limit, 1), 100); // clamp 1..100
-        if (effectiveLimit != limit) {
-            log.debug("Clamped public-upcoming limit from {} to {}", limit, effectiveLimit);
-        }
-        return eventService.listPublicUpcoming(start, effectiveLimit);
+        return eventService.listPublicUpcoming(start, limit);
     }
 
     // GET /api/events/{id}/audits  (read-only audit trail)
@@ -324,6 +294,10 @@ public class EventsController {
     })
     public ResponseEntity<java.util.List<EventAuditDto>> getEventAudits(@PathVariable("id") Long eventId,
                                                                         @RequestParam(name = "limit", required = false, defaultValue = "10") int limit) {
+        // Protect audits to ADMIN or owner
+        UserContext uc = userContextProvider.current();
+        EventDetailDto existing = eventService.getEventDetailOrThrow(eventId);
+        eventAccessPolicy.assertCanModify(existing, java.util.Optional.ofNullable(uc.userId()), uc.admin(), uc.editor());
         var audits = eventAuditService.getRecentForEvent(eventId, limit)
                 .stream()
                 .map(a -> {
@@ -339,21 +313,5 @@ public class EventsController {
         return ResponseEntity.ok(audits);
     }
 
-    private boolean isAdmin() {
-        var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
-        if (auth == null || !auth.isAuthenticated()) return false;
-        return auth.getAuthorities().stream().map(org.springframework.security.core.GrantedAuthority::getAuthority)
-                .anyMatch(a -> "ROLE_ADMIN".equals(a));
-    }
-
-    private boolean isEditor() {
-        var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
-        if (auth == null || !auth.isAuthenticated()) return false;
-        return auth.getAuthorities().stream().map(org.springframework.security.core.GrantedAuthority::getAuthority)
-                .anyMatch(a -> "ROLE_EDITOR".equals(a));
-    }
-
-    private Optional<Long> currentUserId() {
-        return CurrentAuditor.get();
-    }
+    // Removed legacy role helpers in favor of UserContextProvider
 }
