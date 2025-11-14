@@ -33,6 +33,7 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import org.springframework.data.domain.Page;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Max;
+import jakarta.validation.ValidationException;
 
 import java.net.URI;
 import java.time.Instant;
@@ -279,6 +280,9 @@ public class EventsController {
             @RequestParam(name = "limit", required = false, defaultValue = "10") @Min(1) @Max(100) int limit) {
         // Accept full ISO-8601 instants (e.g., 2025-11-12T21:16:46.100Z). Spring will bind to Instant.
         // Convert to UTC LocalDateTime to match service contract.
+        if (limit < 1 || limit > 100) {
+            throw new ValidationException("Parameter 'limit' must be between 1 and 100");
+        }
         Instant effectiveFrom = (from == null) ? Instant.now() : from;
         LocalDateTime start = LocalDateTime.ofInstant(effectiveFrom, ZoneOffset.UTC);
         return eventService.listPublicUpcoming(start, limit);

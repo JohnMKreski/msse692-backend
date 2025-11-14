@@ -6,6 +6,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
+import jakarta.validation.ValidationException;
 import org.slf4j.MDC;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -60,6 +61,12 @@ public class RestExceptionHandler {
                 .map(this::toFieldIssue)
                 .collect(Collectors.toList());
         ApiErrorDto body = build(HttpStatus.BAD_REQUEST, "CONSTRAINT_VIOLATION", "Constraint violation", req, issues);
+        return ResponseEntity.badRequest().body(body);
+    }
+
+    @ExceptionHandler(ValidationException.class)
+    public ResponseEntity<ApiErrorDto> handleGenericValidation(ValidationException ex, HttpServletRequest req) {
+        ApiErrorDto body = build(HttpStatus.BAD_REQUEST, "CONSTRAINT_VIOLATION", ex.getMessage(), req, null);
         return ResponseEntity.badRequest().body(body);
     }
 
