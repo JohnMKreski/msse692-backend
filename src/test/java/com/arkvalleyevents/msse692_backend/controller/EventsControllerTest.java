@@ -15,13 +15,18 @@ import com.arkvalleyevents.msse692_backend.dto.response.EventDto;
 import com.arkvalleyevents.msse692_backend.model.EventStatus;
 import com.arkvalleyevents.msse692_backend.model.EventAudit;
 import com.arkvalleyevents.msse692_backend.dto.request.UpdateEventDto;
+import com.arkvalleyevents.msse692_backend.security.policy.EventAccessPolicy;
+import com.arkvalleyevents.msse692_backend.security.context.UserContextProvider;
+import com.arkvalleyevents.msse692_backend.security.context.UserContext;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.mockito.ArgumentCaptor;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-import com.arkvalleyevents.msse692_backend.controller.RestExceptionHandler;
 import static org.mockito.Mockito.*;
 import org.junit.jupiter.api.BeforeEach;
 
@@ -31,13 +36,17 @@ class EventsControllerTest {
   private EventService eventService;
   @Mock
   private EventAuditService eventAuditService;
+  @Mock
+  private UserContextProvider userContextProvider;
 
   private MockMvc mockMvc;
 
   @BeforeEach
   void setup() {
     MockitoAnnotations.openMocks(this);
-    EventsController controller = new EventsController(eventService, eventAuditService);
+    EventAccessPolicy policy = new EventAccessPolicy();
+    when(userContextProvider.current()).thenReturn(new UserContext(10L, true, false));
+    EventsController controller = new EventsController(eventService, eventAuditService, policy, userContextProvider);
     mockMvc = MockMvcBuilders.standaloneSetup(controller)
         .setControllerAdvice(new RestExceptionHandler())
         .build();
@@ -78,7 +87,10 @@ class EventsControllerTest {
   dto.setEventName("Updated Event");
   dto.setCreatedByUserId(10L); // original creator remains
   dto.setLastModifiedByUserId(11L); // modified by another user
-
+    EventDetailDto existing = new EventDetailDto();
+    existing.setEventId(2L);
+    existing.setCreatedByUserId(10L);
+    when(eventService.getEventDetailOrThrow(2L)).thenReturn(existing);
   when(eventService.updateEvent(eq(2L), any(UpdateEventDto.class))).thenReturn(dto);
 
   mockMvc.perform(put("/api/v1/events/2").contentType(MediaType.APPLICATION_JSON_VALUE)
@@ -100,6 +112,10 @@ class EventsControllerTest {
 
   @Test
   void getEventAudits_returnsRecentActionsOrderedAndLimited() throws Exception {
+    EventDetailDto existing = new EventDetailDto();
+    existing.setEventId(99L);
+    existing.setCreatedByUserId(10L);
+    when(eventService.getEventDetailOrThrow(99L)).thenReturn(existing);
     EventAudit older = new EventAudit();
     older.setId(1L);
     older.setEventId(99L);
@@ -131,6 +147,10 @@ class EventsControllerTest {
 
   @Test
   void publishEvent_returnsPublishedStatus() throws Exception {
+    EventDetailDto existing = new EventDetailDto();
+    existing.setEventId(50L);
+    existing.setCreatedByUserId(10L);
+    when(eventService.getEventDetailOrThrow(50L)).thenReturn(existing);
     EventDetailDto dto = new EventDetailDto();
     dto.setEventId(50L);
     dto.setStatus(EventStatus.PUBLISHED);
@@ -144,6 +164,10 @@ class EventsControllerTest {
 
   @Test
   void publishEvent_illegalState_conflict() throws Exception {
+    EventDetailDto existing = new EventDetailDto();
+    existing.setEventId(51L);
+    existing.setCreatedByUserId(10L);
+    when(eventService.getEventDetailOrThrow(51L)).thenReturn(existing);
     when(eventService.publishEvent(51L)).thenThrow(new IllegalStateException("Only DRAFT events can be published"));
 
     mockMvc.perform(post("/api/v1/events/51/publish"))
@@ -153,6 +177,10 @@ class EventsControllerTest {
 
   @Test
   void unpublishEvent_returnsUnpublishedStatus() throws Exception {
+    EventDetailDto existing = new EventDetailDto();
+    existing.setEventId(60L);
+    existing.setCreatedByUserId(10L);
+    when(eventService.getEventDetailOrThrow(60L)).thenReturn(existing);
     EventDetailDto dto = new EventDetailDto();
     dto.setEventId(60L);
     dto.setStatus(EventStatus.UNPUBLISHED);
@@ -165,6 +193,10 @@ class EventsControllerTest {
 
   @Test
   void cancelEvent_returnsCancelledStatus() throws Exception {
+    EventDetailDto existing = new EventDetailDto();
+    existing.setEventId(70L);
+    existing.setCreatedByUserId(10L);
+    when(eventService.getEventDetailOrThrow(70L)).thenReturn(existing);
     EventDetailDto dto = new EventDetailDto();
     dto.setEventId(70L);
     dto.setStatus(EventStatus.CANCELLED);
@@ -185,5 +217,48 @@ class EventsControllerTest {
     mockMvc.perform(get("/api/v1/events/public-upcoming?limit=3"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$[0].eventId").value(80L));
+  }
+
+  @Test
+  void listEvents_delegatesToScopedService_andReturnsPage() throws Exception {
+    EventDto dto = new EventDto();
+    dto.setEventId(123L);
+    Page<EventDto> page = new PageImpl<>(java.util.List.of(dto));
+    when(eventService.listEventsPageScoped(anyMap(), anyInt(), anyInt(), anyString(), any(UserContext.class)))
+        .thenReturn(page);
+
+    mockMvc.perform(get("/api/v1/events")
+            .param("page", "1")
+            .param("size", "2")
+            .param("sort", "-startAt")
+            .param("type", "Concert"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items[0].eventId").value(123L));
+
+    @SuppressWarnings("unchecked")
+    ArgumentCaptor<java.util.Map<String,String>> capFilters = (ArgumentCaptor<java.util.Map<String,String>>) (ArgumentCaptor<?>) ArgumentCaptor.forClass(java.util.Map.class);
+    verify(eventService).listEventsPageScoped(capFilters.capture(), eq(1), eq(2), eq("-startAt"), any(UserContext.class));
+    java.util.Map<String,String> filters = capFilters.getValue();
+    org.junit.jupiter.api.Assertions.assertEquals("Concert", filters.get("type"));
+    org.junit.jupiter.api.Assertions.assertFalse(filters.containsKey("page"));
+    org.junit.jupiter.api.Assertions.assertFalse(filters.containsKey("size"));
+    org.junit.jupiter.api.Assertions.assertFalse(filters.containsKey("sort"));
+  }
+
+  @Test
+  void listEvents_unsupportedSort_returns400InvalidArgument() throws Exception {
+    mockMvc.perform(get("/api/v1/events")
+            .param("sort", "badField"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.code").value("INVALID_ARGUMENT"));
+    verify(eventService, never()).listEventsPageScoped(anyMap(), anyInt(), anyInt(), anyString(), any(UserContext.class));
+  }
+
+  @Test
+  void listPublicUpcoming_limitTooLow_returns400ConstraintViolation() throws Exception {
+    mockMvc.perform(get("/api/v1/events/public-upcoming").param("limit", "0"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.code").value("CONSTRAINT_VIOLATION"));
+    verify(eventService, never()).listPublicUpcoming(any(), anyInt());
   }
 }
