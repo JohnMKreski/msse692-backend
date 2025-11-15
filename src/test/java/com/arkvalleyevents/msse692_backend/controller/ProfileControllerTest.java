@@ -1,6 +1,6 @@
 package com.arkvalleyevents.msse692_backend.controller;
 
-import static org.mockito.Mockito.*;
+ 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -9,6 +9,7 @@ import com.arkvalleyevents.msse692_backend.repository.AppUserRepository;
 import com.arkvalleyevents.msse692_backend.repository.ProfileRepository;
 import com.arkvalleyevents.msse692_backend.model.Profile;
 import com.arkvalleyevents.msse692_backend.service.ProfileService;
+import com.arkvalleyevents.msse692_backend.dto.request.ProfileRequest;
 import java.time.OffsetDateTime;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -28,8 +29,8 @@ class ProfileControllerTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @MockitoBean
-    private ProfileService profileService;
+    @org.springframework.beans.factory.annotation.Autowired
+    private ProfileControllerTest.FakeProfileService profileService;
 
     // Mock repository beans so the AppUserUpsertFilter (component) can be constructed without failing dependency lookup
     @MockitoBean
@@ -39,12 +40,12 @@ class ProfileControllerTest {
 
     @Test
     void getProfile_notFound_returns404() throws Exception {
-        when(profileService.getCurrentProfile("firebase-123")).thenReturn(Optional.empty());
+        profileService.setNextGetCurrent(Optional.empty());
 
     mockMvc.perform(get("/api/v1/profile/me")
                 .with(jwt().jwt(j -> j.claim("sub", "firebase-123"))))
-            .andExpect(status().isNotFound())
-            .andExpect(jsonPath("$.code").value("PROFILE_NOT_FOUND"));
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("NOT_FOUND"));
     }
 
     @Test
@@ -58,7 +59,7 @@ class ProfileControllerTest {
         p.setVerified(false);
         p.setCreatedAt(OffsetDateTime.now());
         p.setUpdatedAt(OffsetDateTime.now());
-    when(profileService.getCurrentProfile("uid-456")).thenReturn(Optional.of(p));
+    profileService.setNextGetCurrent(Optional.of(p));
 
     mockMvc.perform(get("/api/v1/profile/me")
         .with(jwt().jwt(j -> j.claim("sub", "uid-456"))))
@@ -69,7 +70,7 @@ class ProfileControllerTest {
 
     @Test
     void postProfile_create_returns201() throws Exception {
-        when(profileService.getCurrentProfile("uid-new")).thenReturn(Optional.empty());
+        profileService.setNextGetCurrent(Optional.empty());
         Profile p = new Profile();
         AppUser u = new AppUser();
         u.setId(77L);
@@ -79,7 +80,7 @@ class ProfileControllerTest {
         p.setVerified(false);
         p.setCreatedAt(OffsetDateTime.now());
         p.setUpdatedAt(OffsetDateTime.now());
-    when(profileService.upsertProfile(eq("uid-new"), any())).thenReturn(p);
+    profileService.setNextUpsert(p);
 
     mockMvc.perform(post("/api/v1/profile")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -100,7 +101,7 @@ class ProfileControllerTest {
         existing.setVerified(false);
         existing.setCreatedAt(OffsetDateTime.now());
         existing.setUpdatedAt(OffsetDateTime.now());
-    when(profileService.getCurrentProfile("uid-existing")).thenReturn(Optional.of(existing));
+        profileService.setNextGetCurrent(Optional.of(existing));
 
         Profile updated = new Profile();
         updated.setUser(u);
@@ -109,13 +110,41 @@ class ProfileControllerTest {
         updated.setVerified(false);
         updated.setCreatedAt(existing.getCreatedAt());
         updated.setUpdatedAt(OffsetDateTime.now());
-    when(profileService.upsertProfile(eq("uid-existing"), any())).thenReturn(updated);
+        profileService.setNextUpsert(updated);
 
-    mockMvc.perform(post("/api/v1/profile")
+        mockMvc.perform(post("/api/v1/profile")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"displayName\":\"Updated Name\"}")
-        .with(jwt().jwt(j -> j.claim("sub", "uid-existing"))))
+                .with(jwt().jwt(j -> j.claim("sub", "uid-existing"))))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.displayName").value("Updated Name"));
+    }
+
+    @org.springframework.boot.test.context.TestConfiguration
+    static class StubConfig {
+        @org.springframework.context.annotation.Bean
+        ProfileService profileServiceBean() {
+            return new FakeProfileService();
+        }
+    }
+
+    static class FakeProfileService implements ProfileService {
+        private Optional<Profile> nextGetCurrent = Optional.empty();
+        private Profile nextUpsert;
+
+        void setNextGetCurrent(Optional<Profile> p) { this.nextGetCurrent = p; }
+        void setNextUpsert(Profile p) { this.nextUpsert = p; }
+
+        @Override
+        public Optional<Profile> getCurrentProfile(String firebaseUid) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public Profile upsertProfile(String firebaseUid, ProfileRequest request) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public Optional<Profile> getCurrentProfile() { return nextGetCurrent; }
+
+        @Override
+        public Profile upsertCurrentProfile(ProfileRequest request) { return nextUpsert; }
     }
 }

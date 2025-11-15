@@ -3,6 +3,7 @@ package com.arkvalleyevents.msse692_backend.controller;
 import com.arkvalleyevents.msse692_backend.dto.response.ApiErrorDto;
 import com.arkvalleyevents.msse692_backend.model.AppUser;
 import com.arkvalleyevents.msse692_backend.repository.AppUserRepository;
+import com.arkvalleyevents.msse692_backend.security.context.UserContextProvider;
 import com.arkvalleyevents.msse692_backend.service.FirebaseClaimsSyncService;
 import java.util.HashSet;
 import java.util.Locale;
@@ -21,10 +22,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
+import jakarta.persistence.EntityNotFoundException;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 @RequestMapping("/api/admin/users")
@@ -37,10 +36,12 @@ public class AdminUserController {
 
     private final AppUserRepository appUserRepository;
     private final FirebaseClaimsSyncService claimsSyncService;
+    private final UserContextProvider userContextProvider;
 
-    public AdminUserController(AppUserRepository appUserRepository, FirebaseClaimsSyncService claimsSyncService) {
+    public AdminUserController(AppUserRepository appUserRepository, FirebaseClaimsSyncService claimsSyncService, UserContextProvider userContextProvider) {
         this.appUserRepository = appUserRepository;
         this.claimsSyncService = claimsSyncService;
+        this.userContextProvider = userContextProvider;
     }
 
     public record RolesRequest(Set<String> roles) {}
@@ -59,13 +60,13 @@ public class AdminUserController {
     private static void validateAllowed(Set<String> roles) {
         Set<String> unknown = roles.stream().filter(r -> !ALLOWED_ROLES.contains(r)).collect(Collectors.toSet());
         if (!unknown.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown roles: " + unknown + ". Allowed: " + ALLOWED_ROLES);
+            throw new IllegalArgumentException("Unknown roles: " + unknown + ". Allowed: " + ALLOWED_ROLES);
         }
     }
 
     private AppUser getUserOr404(String uid) {
         return appUserRepository.findByFirebaseUid(uid)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found for UID: " + uid));
+            .orElseThrow(() -> new EntityNotFoundException("User not found for UID: " + uid));
     }
 
     @GetMapping("/{uid}/roles")
@@ -97,7 +98,7 @@ public class AdminUserController {
         AppUser user = getUserOr404(uid);
         Set<String> toAdd = normalizeRoles(body != null ? body.roles() : null);
         if (toAdd.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Body must include roles");
+            throw new IllegalArgumentException("Body must include roles");
         }
         validateAllowed(toAdd);
         Set<String> roles = user.getRoles();
@@ -105,9 +106,8 @@ public class AdminUserController {
         roles.addAll(toAdd);
         user.setRoles(roles);
         appUserRepository.save(user);
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        String actor = (auth != null ? auth.getName() : "unknown");
-        log.info("ADMIN addRoles: actor={} uid={} added={} resultingRoles={}", actor, uid, toAdd, roles);
+        Long actorId = userContextProvider.current().userId();
+        log.info("ADMIN addRoles: actorId={} uid={} added={} resultingRoles={}", actorId, uid, toAdd, roles);
         // Force sync claims after role mutation
         claimsSyncService.syncUserRolesByUid(user.getFirebaseUid(), true);
         return new RolesResponse(user.getFirebaseUid(), user.getRoles());
@@ -128,14 +128,13 @@ public class AdminUserController {
         AppUser user = getUserOr404(uid);
         String normalized = role == null ? null : role.trim().toUpperCase(Locale.ROOT);
         if (normalized == null || normalized.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Role path variable is required");
+            throw new IllegalArgumentException("Role path variable is required");
         }
         validateAllowed(Set.of(normalized));
         if (user.getRoles() != null && user.getRoles().remove(normalized)) {
             appUserRepository.save(user);
-            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-            String actor = (auth != null ? auth.getName() : "unknown");
-            log.info("ADMIN removeRole: actor={} uid={} removed={} resultingRoles={}", actor, uid, normalized, user.getRoles());
+            Long actorId = userContextProvider.current().userId();
+            log.info("ADMIN removeRole: actorId={} uid={} removed={} resultingRoles={}", actorId, uid, normalized, user.getRoles());
             claimsSyncService.syncUserRolesByUid(user.getFirebaseUid(), true);
             return ResponseEntity.ok(Map.of("removed", normalized, "uid", uid));
         }
@@ -152,9 +151,8 @@ public class AdminUserController {
     })
     public ResponseEntity<?> syncRolesClaims(@PathVariable String uid, @RequestParam(name = "force", defaultValue = "false") boolean force) {
         AppUser user = getUserOr404(uid);
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        String actor = (auth != null ? auth.getName() : "unknown");
-        log.info("ADMIN syncRolesClaims: actor={} uid={} force={}", actor, uid, force);
+        Long actorId = userContextProvider.current().userId();
+        log.info("ADMIN syncRolesClaims: actorId={} uid={} force={}", actorId, uid, force);
         claimsSyncService.syncUserRolesByUid(user.getFirebaseUid(), force);
         return ResponseEntity.accepted().body(Map.of(
             "uid", user.getFirebaseUid(),

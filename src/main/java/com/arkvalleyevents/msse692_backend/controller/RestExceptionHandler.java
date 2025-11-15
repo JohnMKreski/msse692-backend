@@ -3,8 +3,10 @@ package com.arkvalleyevents.msse692_backend.controller;
 import com.arkvalleyevents.msse692_backend.dto.response.ApiErrorDto;
 import com.arkvalleyevents.msse692_backend.dto.response.FieldIssueDto;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
+import jakarta.validation.ValidationException;
 import org.slf4j.MDC;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -13,6 +15,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.OffsetDateTime;
 import java.util.*;
@@ -61,6 +64,12 @@ public class RestExceptionHandler {
         return ResponseEntity.badRequest().body(body);
     }
 
+    @ExceptionHandler(ValidationException.class)
+    public ResponseEntity<ApiErrorDto> handleGenericValidation(ValidationException ex, HttpServletRequest req) {
+        ApiErrorDto body = build(HttpStatus.BAD_REQUEST, "CONSTRAINT_VIOLATION", ex.getMessage(), req, null);
+        return ResponseEntity.badRequest().body(body);
+    }
+
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     public ResponseEntity<ApiErrorDto> handleTypeMismatch(MethodArgumentTypeMismatchException ex, HttpServletRequest req) {
         FieldIssueDto issue = new FieldIssueDto(ex.getName(), "Type mismatch", ex.getValue());
@@ -74,10 +83,30 @@ public class RestExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body);
     }
 
+    @ExceptionHandler(EntityNotFoundException.class)
+    public ResponseEntity<ApiErrorDto> handleEntityNotFound(EntityNotFoundException ex, HttpServletRequest req) {
+        ApiErrorDto body = build(HttpStatus.NOT_FOUND, "NOT_FOUND", ex.getMessage(), req, null);
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body);
+    }
+
     @ExceptionHandler(IllegalStateException.class)
     public ResponseEntity<ApiErrorDto> handleIllegalState(IllegalStateException ex, HttpServletRequest req) {
         ApiErrorDto body = build(HttpStatus.CONFLICT, "ILLEGAL_STATE", ex.getMessage(), req, null);
         return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ApiErrorDto> handleIllegalArgument(IllegalArgumentException ex, HttpServletRequest req) {
+        ApiErrorDto body = build(HttpStatus.BAD_REQUEST, "INVALID_ARGUMENT", ex.getMessage(), req, null);
+        return ResponseEntity.badRequest().body(body);
+    }
+
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<ApiErrorDto> handleResponseStatus(ResponseStatusException ex, HttpServletRequest req) {
+        HttpStatus status = HttpStatus.valueOf(ex.getStatusCode().value());
+        String message = ex.getReason() != null ? ex.getReason() : ex.getMessage();
+        ApiErrorDto body = build(status, status.is4xxClientError() ? "CLIENT_ERROR" : "ERROR", message, req, null);
+        return ResponseEntity.status(ex.getStatusCode()).body(body);
     }
 
     @ExceptionHandler(Exception.class)
