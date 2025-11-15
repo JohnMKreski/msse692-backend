@@ -1,6 +1,5 @@
 package com.arkvalleyevents.msse692_backend.controller;
 
-import com.arkvalleyevents.msse692_backend.model.EventStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.web.servlet.MockMvc;
