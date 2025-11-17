@@ -11,6 +11,7 @@ import org.springframework.stereotype.Repository;
 public interface ProfileRepository extends JpaRepository<Profile, Long> {
     Optional<Profile> findByUserId(Long userId);
 
+    //TODO: Remove Query for security? Investigate performance impact.
     @Query("select p from Profile p join p.user u where u.firebaseUid = :firebaseUid")
     Optional<Profile> findByUserFirebaseUid(@Param("firebaseUid") String firebaseUid);
 

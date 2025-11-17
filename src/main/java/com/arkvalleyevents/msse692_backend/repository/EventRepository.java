@@ -13,7 +13,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
-// It extends JpaRepository and JpaSpecificationExecutor so you can add Specifications later for filtered searches.
+// Extends JpaRepository and JpaSpecificationExecutor. Can add Specifications later for filtered searches.
 @Repository
 public interface EventRepository extends JpaRepository<Event, Long>, JpaSpecificationExecutor<Event> {
 
