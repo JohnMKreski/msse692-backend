@@ -21,7 +21,7 @@ import java.util.UUID;
 @Entity
 @Getter
 @Setter
-@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@NoArgsConstructor(access = AccessLevel.PUBLIC)
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @ToString(onlyExplicitlyIncluded = true)
 @Table(name = "role_requests")
@@ -73,4 +73,5 @@ public class RoleRequest {
         if (createdAt == null) createdAt = OffsetDateTime.now();
         if (status == null) status = RoleRequestStatus.PENDING;
     }
+
 }
