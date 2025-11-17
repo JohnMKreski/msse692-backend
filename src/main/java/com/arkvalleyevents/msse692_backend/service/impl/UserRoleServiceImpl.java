@@ -60,7 +60,7 @@ public class UserRoleServiceImpl implements UserRoleService {
         appUserRepository.save(user);
 
         Long actorId = userContextProvider.current().userId();
-        log.info("ADMIN addRoles: actorId={} uid={} added={} resultingRoles={}", actorId, uid, normalized, roles);
+        audit("ADMIN_ADD_ROLES", "actorId", actorId, "targetUid", uid, "added", normalized, "resulting", roles, "outcome", "SUCCESS");
 
         claimsSyncService.syncUserRolesByUid(user.getFirebaseUid(), true);
         return new RolesView(user.getFirebaseUid(), user.getRoles());
@@ -80,8 +80,11 @@ public class UserRoleServiceImpl implements UserRoleService {
         if (removed) {
             appUserRepository.save(user);
             Long actorId = userContextProvider.current().userId();
-            log.info("ADMIN removeRole: actorId={} uid={} removed={} resultingRoles={}", actorId, uid, normalized, user.getRoles());
+            audit("ADMIN_REMOVE_ROLE", "actorId", actorId, "targetUid", uid, "removed", normalized, "resulting", user.getRoles(), "outcome", "SUCCESS");
             claimsSyncService.syncUserRolesByUid(user.getFirebaseUid(), true);
+        } else {
+            Long actorId = userContextProvider.current().userId();
+            audit("ADMIN_REMOVE_ROLE", "actorId", actorId, "targetUid", uid, "removed", normalized, "outcome", "NOT_PRESENT");
         }
         return new RemoveRoleResult(removed, normalized, uid);
     }
@@ -91,7 +94,7 @@ public class UserRoleServiceImpl implements UserRoleService {
     public SyncResult syncClaims(String uid, boolean force) {
         AppUser user = getUserOr404(uid);
         Long actorId = userContextProvider.current().userId();
-        log.info("ADMIN syncRolesClaims: actorId={} uid={} force={}", actorId, uid, force);
+        audit("ADMIN_SYNC_CLAIMS", "actorId", actorId, "targetUid", uid, "force", force, "outcome", "SUCCESS");
         claimsSyncService.syncUserRolesByUid(user.getFirebaseUid(), force);
         return new SyncResult(user.getFirebaseUid(), force);
     }
@@ -116,5 +119,30 @@ public class UserRoleServiceImpl implements UserRoleService {
         if (!unknown.isEmpty()) {
             throw new IllegalArgumentException("Unknown roles: " + unknown + ". Allowed: " + ALLOWED_ROLES);
         }
+    }
+
+    private void audit(String event, Object... kv) {
+        StringBuilder sb = new StringBuilder("audit=true event=").append(event);
+        for (int i = 0; i + 1 < kv.length; i += 2) {
+            Object key = kv[i];
+            Object val = kv[i + 1];
+            if (key == null) continue;
+            sb.append(' ').append(key).append('=');
+            if (val == null) {
+                sb.append("null");
+            } else if (val instanceof Iterable<?>) {
+                sb.append(toSortedList((Iterable<?>) val));
+            } else {
+                sb.append(val);
+            }
+        }
+        log.info(sb.toString());
+    }
+
+    private java.util.List<String> toSortedList(Iterable<?> it) {
+        java.util.List<String> list = new java.util.ArrayList<>();
+        for (Object o : it) if (o != null) list.add(o.toString());
+        list.sort(java.util.Comparator.naturalOrder());
+        return list;
     }
 }

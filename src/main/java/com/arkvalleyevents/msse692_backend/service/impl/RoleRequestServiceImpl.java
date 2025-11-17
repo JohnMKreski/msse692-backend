@@ -51,23 +51,24 @@ public class RoleRequestServiceImpl implements RoleRequestService {
     public RoleRequestDto create(String requesterUid, RoleRequestCreateDto body) {
         requireNonBlank(requesterUid, "requesterUid");
         validateCreate(body);
-
+        Set<String> normalizedRoles = normalizeRoles(body.getRequestedRoles());
         // Guard: only one PENDING per requester (service-level; DB partial index can come later)
         boolean alreadyPending = repository.existsByRequesterUidAndStatus(requesterUid, RoleRequestStatus.PENDING);
         if (alreadyPending) {
+            audit("DUPLICATE_REQUEST_BLOCKED", "requesterUid", requesterUid, "roles", normalizedRoles, "outcome", "FAILURE", "error", "ALREADY_PENDING");
             throw new IllegalStateException("Existing PENDING role request for requesterUid=" + requesterUid);
         }
 
         RoleRequest entity = new RoleRequest();
         entity.setRequesterUid(requesterUid);
-        entity.getRequestedRoles().addAll(normalizeRoles(body.getRequestedRoles()));
+        entity.getRequestedRoles().addAll(normalizedRoles);
         entity.setReason(trimToNull(body.getReason()));
         entity.setStatus(RoleRequestStatus.PENDING); // explicit for clarity
         // id + createdAt via @PrePersist
 
         RoleRequest saved = repository.save(entity);
         Long actorId = userContextProvider.current().userId();
-        log.info("role-request create: actorId={} requesterUid={} roles={} reason={}", actorId, requesterUid, saved.getRequestedRoles(), saved.getReason());
+        audit("CREATE_REQUEST", "actorId", actorId, "requesterUid", requesterUid, "requestId", saved.getId(), "roles", saved.getRequestedRoles(), "reasonLen", saved.getReason() != null ? saved.getReason().length() : 0, "status", saved.getStatus(), "outcome", "SUCCESS", "version", saved.getVersion());
         return toDto(saved);
     }
 
@@ -97,11 +98,12 @@ public class RoleRequestServiceImpl implements RoleRequestService {
         if (entity.getStatus() != RoleRequestStatus.PENDING) {
             throw new IllegalStateException("Only PENDING requests can be canceled");
         }
+        RoleRequestStatus fromStatus = entity.getStatus();
         entity.setStatus(RoleRequestStatus.CANCELED);
         entity.setDecidedAt(OffsetDateTime.now());
         RoleRequest saved = repository.save(entity);
         Long actorId = userContextProvider.current().userId();
-        log.info("role-request cancel: actorId={} requesterUid={} id={} status={}", actorId, requesterUid, id, saved.getStatus());
+        audit("CANCEL_REQUEST", "actorId", actorId, "requesterUid", requesterUid, "requestId", id, "from", fromStatus, "to", saved.getStatus(), "outcome", "SUCCESS", "version", saved.getVersion());
         return toDto(saved);
     }
 
@@ -145,6 +147,7 @@ public class RoleRequestServiceImpl implements RoleRequestService {
         if (entity.getStatus() != RoleRequestStatus.PENDING) {
             throw new IllegalStateException("Only PENDING requests can be approved");
         }
+        RoleRequestStatus fromStatus = entity.getStatus();
         entity.setStatus(RoleRequestStatus.APPROVED);
         entity.setApproverUid(approverUid);
         entity.setApproverNote(trimToNull(body != null ? body.getApproverNote() : null));
@@ -155,7 +158,7 @@ public class RoleRequestServiceImpl implements RoleRequestService {
         userRoleService.addRoles(saved.getRequesterUid(), saved.getRequestedRoles());
         // userRoleService itself logs and performs claims sync; we only log decision here
         Long actorId = userContextProvider.current().userId();
-        log.info("role-request approve: actorId={} id={} requesterUid={} roles={}", actorId, id, saved.getRequesterUid(), saved.getRequestedRoles());
+        audit("APPROVE_REQUEST", "actorId", actorId, "approverUid", approverUid, "requesterUid", saved.getRequesterUid(), "requestId", id, "rolesGranted", saved.getRequestedRoles(), "from", fromStatus, "to", saved.getStatus(), "noteLen", saved.getApproverNote() != null ? saved.getApproverNote().length() : 0, "outcome", "SUCCESS", "version", saved.getVersion());
         return toDto(saved);
     }
 
@@ -169,14 +172,14 @@ public class RoleRequestServiceImpl implements RoleRequestService {
         if (entity.getStatus() != RoleRequestStatus.PENDING) {
             throw new IllegalStateException("Only PENDING requests can be rejected");
         }
+        RoleRequestStatus fromStatus = entity.getStatus();
         entity.setStatus(RoleRequestStatus.REJECTED);
         entity.setApproverUid(approverUid);
         entity.setApproverNote(trimToNull(body != null ? body.getApproverNote() : null));
         entity.setDecidedAt(OffsetDateTime.now());
         RoleRequest saved = repository.save(entity);
         Long actorId = userContextProvider.current().userId();
-        log.info("role-request reject: actorId={} id={} requesterUid={} noteLength={}",
-                actorId, id, saved.getRequesterUid(), saved.getApproverNote() != null ? saved.getApproverNote().length() : 0);
+        audit("REJECT_REQUEST", "actorId", actorId, "approverUid", approverUid, "requesterUid", saved.getRequesterUid(), "requestId", id, "from", fromStatus, "to", saved.getStatus(), "noteLen", saved.getApproverNote() != null ? saved.getApproverNote().length() : 0, "outcome", "SUCCESS", "version", saved.getVersion());
         return toDto(saved);
     }
 
@@ -237,5 +240,32 @@ public class RoleRequestServiceImpl implements RoleRequestService {
         if (v == null || v.isBlank()) {
             throw new IllegalArgumentException(name + " is required");
         }
+    }
+
+    private void audit(String event, Object... kv) {
+        StringBuilder sb = new StringBuilder("audit=true event=").append(event);
+        for (int i = 0; i + 1 < kv.length; i += 2) {
+            Object key = kv[i];
+            Object val = kv[i + 1];
+            if (key == null) continue;
+            sb.append(' ').append(key).append('=');
+            if (val == null) {
+                sb.append("null");
+            } else if (val instanceof Iterable<?>) {
+                String joined = ((Iterable<?>) val).iterator().hasNext() ?
+                        toSortedList((Iterable<?>) val).toString() : "[]";
+                sb.append(joined);
+            } else {
+                sb.append(val);
+            }
+        }
+        log.info(sb.toString());
+    }
+
+    private List<String> toSortedList(Iterable<?> it) {
+        List<String> list = new ArrayList<>();
+        for (Object o : it) if (o != null) list.add(o.toString());
+        list.sort(Comparator.naturalOrder());
+        return list;
     }
 }
