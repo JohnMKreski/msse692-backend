@@ -4,16 +4,17 @@ import com.arkvalleyevents.msse692_backend.model.RoleRequestStatus;
 import com.arkvalleyevents.msse692_backend.repository.RoleRequestRepository;
 import com.arkvalleyevents.msse692_backend.security.context.UserContext;
 import com.arkvalleyevents.msse692_backend.security.context.UserContextProvider;
-import com.google.cloud.Role;
+import org.springframework.context.annotation.Import;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import com.arkvalleyevents.msse692_backend.config.SecurityConfig;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.annotation.Primary;
-import org.springframework.context.annotation.TestConfiguration;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import static org.mockito.Mockito.when;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.ActiveProfiles;
@@ -26,10 +27,13 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@WebMvcTest(RoleRequestController.class)
 @SpringBootTest
 @AutoConfigureMockMvc
-@ActiveProfiles("test")
+@ActiveProfiles("dev")
+@Import(SecurityConfig.class)
+@org.springframework.test.context.TestPropertySource(properties = {
+    "spring.security.oauth2.resourceserver.jwt.issuer-uri=http://test-issuer"
+})
 class RoleRequestControllerTest {
 
     @Autowired
@@ -39,18 +43,15 @@ class RoleRequestControllerTest {
     private RoleRequestRepository repository;
 
     private final String requesterUid = "test-user-123";
-
-    @TestConfiguration
-    static class OverrideConfig {
-        @Primary
-        public UserContextProvider userContextProvider() {
-            return () -> new UserContext(777L, true, true); // deterministic actorId for audit
-        }
-    }
+    @MockitoBean
+    private JwtDecoder jwtDecoder; // mock out network call for issuer discovery
+    @MockitoBean
+    private UserContextProvider userContextProvider; // mock user context provider
 
     @BeforeEach
     void clean() {
         repository.deleteAll();
+        when(userContextProvider.current()).thenReturn(new UserContext(777L, true, true));
     }
 
     @Test
@@ -71,6 +72,14 @@ class RoleRequestControllerTest {
         var entity = repository.findAll().get(0);
         assert entity.getRequesterUid().equals(requesterUid);
         assert entity.getStatus() == RoleRequestStatus.PENDING;
+    }
+
+    @Test
+    void createRequest_unauthenticated_returns401() throws Exception {
+        mockMvc.perform(post("/api/roles/requests")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"requestedRoles\":[\"editor\"]}"))
+            .andExpect(status().isUnauthorized());
     }
 
     @Test
