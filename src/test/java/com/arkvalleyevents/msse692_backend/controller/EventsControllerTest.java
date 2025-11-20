@@ -261,4 +261,26 @@ class EventsControllerTest {
         .andExpect(jsonPath("$.code").value("CONSTRAINT_VIOLATION"));
     verify(eventService, never()).listPublicUpcoming(any(), anyInt());
   }
+
+  @Test
+  void listMyEvents_delegatesToOwnerService_andReturnsPage() throws Exception {
+    EventDto dto = new EventDto();
+    dto.setEventId(777L);
+    Page<EventDto> page = new PageImpl<>(java.util.List.of(dto));
+    when(eventService.listEventsByOwner(eq(10L), eq(0), eq(20), eq("-startAt"))).thenReturn(page);
+
+    mockMvc.perform(get("/api/v1/events/mine").param("sort", "-startAt"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items[0].eventId").value(777L));
+
+    verify(eventService).listEventsByOwner(eq(10L), eq(0), eq(20), eq("-startAt"));
+  }
+
+  @Test
+  void listMyEvents_missingUserId_accessDenied() throws Exception {
+    when(userContextProvider.current()).thenReturn(new UserContext(null, true, false));
+    mockMvc.perform(get("/api/v1/events/mine"))
+        .andExpect(status().isForbidden())
+        .andExpect(jsonPath("$.code").value("ACCESS_DENIED"));
+  }
 }

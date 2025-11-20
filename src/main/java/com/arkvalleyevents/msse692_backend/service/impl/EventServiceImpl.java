@@ -248,6 +248,21 @@ public class EventServiceImpl implements EventService {
 
     @Override
     @Transactional(readOnly = true)
+    public Page<EventDto> listEventsByOwner(Long ownerUserId, int page, int size, String sort) {
+        if (ownerUserId == null) {
+            throw new IllegalArgumentException("ownerUserId cannot be null for strict ownership listing");
+        }
+        Pageable pageable = PageRequest.of(Math.max(page, 0), Math.max(size, 1), parseSort(sort));
+        log.debug("Listing events (owner only) ownerUserId={}, page={}, size={}, sort='{}'", ownerUserId, page, size, sort);
+        Specification<Event> spec = (root, query, cb) -> cb.equal(root.get("createdByUserId"), ownerUserId);
+        Page<Event> pageResult = eventRepository.findAll(spec, pageable);
+        Page<EventDto> dtoPage = pageResult.map(mapper::toDto);
+        log.info("Listed {} owner-only events of total {} (page={}, size={})", dtoPage.getNumberOfElements(), dtoPage.getTotalElements(), page, size);
+        return dtoPage;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<EventDto> listUpcoming(LocalDateTime from, int limit) {
         Pageable pageable = PageRequest.of(0, Math.max(limit, 1), Sort.by(Sort.Direction.ASC, "startAt"));
         log.debug("Listing upcoming events starting after {} (limit={})", from, limit);

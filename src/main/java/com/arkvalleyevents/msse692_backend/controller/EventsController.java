@@ -7,7 +7,6 @@ import com.arkvalleyevents.msse692_backend.dto.response.EventDetailDto;
 import com.arkvalleyevents.msse692_backend.dto.response.EventDto;
 import com.arkvalleyevents.msse692_backend.dto.response.EventAuditDto;
 import com.arkvalleyevents.msse692_backend.dto.response.EventPageResponse;
-import com.arkvalleyevents.msse692_backend.dto.response.PageMetadata;
 import com.arkvalleyevents.msse692_backend.service.EventAuditService;
 import com.arkvalleyevents.msse692_backend.service.EventService;
 import com.arkvalleyevents.msse692_backend.security.policy.EventAccessPolicy;
@@ -233,15 +232,7 @@ public class EventsController {
         String safeSort = normalizeSort(sort);
         UserContext uc = userContextProvider.current();
         Page<EventDto> pageResult = eventService.listEventsPageScoped(filters, Math.max(page, 0), Math.max(size, 1), safeSort, uc);
-        EventPageResponse out = new EventPageResponse();
-        out.setItems(pageResult.getContent());
-        PageMetadata meta = new PageMetadata();
-        meta.setNumber(pageResult.getNumber());
-        meta.setSize(pageResult.getSize());
-        meta.setTotalElements(pageResult.getTotalElements());
-        meta.setTotalPages(pageResult.getTotalPages());
-        out.setPage(meta);
-        return out;
+        return EventPageResponse.from(pageResult);
     }
 
     private static final java.util.Set<String> ALLOWED_SORT_FIELDS = java.util.Set.of("startAt", "eventName");
@@ -315,6 +306,38 @@ public class EventsController {
                 })
                 .toList();
         return ResponseEntity.ok(audits);
+    }
+
+    /**
+     * List events created by the authenticated user ("My Events").
+        * Uses strict ownership listing (no role-based expansion) so only the caller's events are returned.
+        * Authorization decision: restricted to ADMIN/EDITOR because only these roles can create events.
+        * If regular USERS later gain create capability, change to isAuthenticated() and add status visibility policy.
+     */
+    @GetMapping("/mine") // GET /api/v1/events/mine
+    @PreAuthorize("hasAnyRole('ADMIN','EDITOR')")
+    @Operation(summary = "List my events", description = "Returns a paged list of events created by the current authenticated user. Supports paging & sorting.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "OK",
+            content = @Content(mediaType = "application/json",
+                schema = @Schema(implementation = EventPageResponse.class))),
+        @ApiResponse(responseCode = "401", description = "Unauthorized"),
+        @ApiResponse(responseCode = "403", description = "Forbidden")
+    })
+    public EventPageResponse listMyEvents(
+            @RequestParam(name = "page", required = false, defaultValue = "0") @Min(0) int page,
+            @RequestParam(name = "size", required = false, defaultValue = "20") @Min(1) @Max(100) int size,
+            @RequestParam(name = "sort", required = false) String sort
+    ) {
+        String safeSort = normalizeSort(sort);
+        UserContext uc = userContextProvider.current();
+        Long uid = uc.userId();
+        if (uid == null) {
+            // Treated as unauthorized – could also throw a dedicated exception mapped to 401/403
+            throw new org.springframework.security.access.AccessDeniedException("User context missing");
+        }
+        Page<EventDto> pageResult = eventService.listEventsByOwner(uid, Math.max(page, 0), Math.max(size, 1), safeSort);
+        return EventPageResponse.from(pageResult);
     }
 
     // Removed legacy role helpers in favor of UserContextProvider

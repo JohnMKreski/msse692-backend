@@ -135,6 +135,40 @@ Base: `/api/v1/events`
 - Notes:
   - Add `Vary: Authorization` (results differ when authenticated).
 
+### List My Events (Strict Ownership)
+- Method/Path: `GET /api/v1/events/mine`
+- Access: `ADMIN`, `EDITOR` (only roles that can create events). If regular `USER` gains create rights later, relax to `isAuthenticated()`.
+- Purpose: Returns ONLY events created by the caller. Does not apply the role expansion (`ownerOrPublished`) used by the general list. No other user's published events are included.
+- Query params:
+  - Paging: `page` (min 0), `size` (1..100)
+  - Sorting: `sort` (allowed: `startAt`, `eventName`; forms: `startAt,asc`, `-startAt`, `eventName,desc`; default `startAt,asc`)
+  - (Filters are not accepted; any provided are ignored — ownership is enforced server-side.)
+- Responses:
+  - 200 EventPageResponse (same shape as List Events)
+    ```json
+    {
+      "items": [
+        {
+          "eventId": 7,
+          "eventName": "My Draft Talk",
+          "type": "MEETUP",
+          "startAt": "2025-07-10T18:00:00",
+          "endAt": "2025-07-10T19:00:00",
+          "eventLocation": "Buena Vista, CO",
+          "status": "DRAFT",
+          "slug": "my-draft-talk"
+        }
+      ],
+      "page": { "number": 0, "size": 20, "totalElements": 3, "totalPages": 1 }
+    }
+    ```
+  - 401/403 if token missing or role insufficient.
+- Differences vs `GET /api/v1/events`:
+  - No status defaults or published expansion; strictly `createdByUserId = caller`.
+  - Draft/cancelled/unpublished events of the caller are visible to them here.
+- Notes: Useful for dashboard "My Events" view; reduces client-side filtering and prevents accidental leakage of other publishers' events.
+
+
 ### Public Upcoming (feed)
 - Method/Path: `GET /api/v1/events/public-upcoming`
 - Access: Public
