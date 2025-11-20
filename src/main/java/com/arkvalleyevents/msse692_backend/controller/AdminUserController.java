@@ -6,6 +6,8 @@ import com.arkvalleyevents.msse692_backend.dto.response.RoleRequestDto;
 import com.arkvalleyevents.msse692_backend.model.RoleRequestStatus;
 import com.arkvalleyevents.msse692_backend.service.RoleRequestService;
 import com.arkvalleyevents.msse692_backend.service.UserRoleService;
+import com.arkvalleyevents.msse692_backend.service.AppUserService;
+import com.arkvalleyevents.msse692_backend.dto.response.AppUserWithRolesDto;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -34,7 +36,7 @@ import java.util.Set;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/admin/users")
+@RequestMapping("/api/v1/admin/users")
 @PreAuthorize("hasRole('ADMIN')")
 @Tag(name = "Admin Users", description = "Admin-only user role management")
 public class AdminUserController {
@@ -43,14 +45,44 @@ public class AdminUserController {
 
     private final RoleRequestService service;
     private final UserRoleService userRoleService;
+    private final AppUserService appUserService;
 
-    public AdminUserController(RoleRequestService service, UserRoleService userRoleService) {
+    public AdminUserController(RoleRequestService service, UserRoleService userRoleService, AppUserService appUserService) {
         this.service = service;
         this.userRoleService = userRoleService;
+        this.appUserService = appUserService;
     }
 
     public record RolesRequest(Set<String> roles) {}
     public record RolesResponse(String firebaseUid, Set<String> roles) {}
+
+        // ----------------------------------------------------------------
+        // Admin User Listing & Detail
+        // ----------------------------------------------------------------
+
+        @GetMapping()
+        @Operation(summary = "List users", description = "Admin-only: Paginated user list with optional text (q) and role filters.")
+        @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "OK",
+                content = @Content(schema = @Schema(implementation = AppUserWithRolesDto.class)))
+        })
+        public Page<AppUserWithRolesDto> listUsers(@RequestParam(name = "q") Optional<String> q,
+                               @RequestParam(name = "role", required = false) Set<String> roles,
+                               Pageable pageable) {
+        return appUserService.listUsers(q, roles == null ? Set.of() : roles, pageable);
+        }
+
+        @GetMapping("/{uid}")
+        @Operation(summary = "Get user detail", description = "Admin-only: Returns a single user with roles by Firebase UID.")
+        @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "OK",
+                content = @Content(schema = @Schema(implementation = AppUserWithRolesDto.class))),
+            @ApiResponse(responseCode = "404", description = "Not Found",
+                content = @Content(schema = @Schema(implementation = ApiErrorDto.class)))
+        })
+        public AppUserWithRolesDto userDetail(@PathVariable String uid) {
+        return appUserService.getByFirebaseUid(uid);
+        }
 
     @GetMapping("/{uid}/roles")
     @PreAuthorize("hasRole('ADMIN')")

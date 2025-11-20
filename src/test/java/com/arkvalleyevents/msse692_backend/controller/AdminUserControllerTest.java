@@ -78,7 +78,7 @@ class AdminUserControllerTest {
         String uid = "uid-1";
         when(userRoleService.getRoles(uid)).thenReturn(new UserRoleService.RolesView(uid, Set.of("USER", "ADMIN")));
 
-        mockMvc.perform(get("/api/admin/users/{uid}/roles", uid)
+        mockMvc.perform(get("/api/v1/admin/users/{uid}/roles", uid)
                 .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))
                         .jwt(j -> j.claim("sub", uid))))
             .andExpect(status().isOk())
@@ -91,7 +91,7 @@ class AdminUserControllerTest {
         String uid = "uid-2";
         when(userRoleService.addRoles(eq(uid), anySet())).thenReturn(new UserRoleService.RolesView(uid, Set.of("USER", "EDITOR")));
 
-        mockMvc.perform(post("/api/admin/users/{uid}/roles", uid)
+        mockMvc.perform(post("/api/v1/admin/users/{uid}/roles", uid)
                 .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))
                         .jwt(j -> j.claim("sub", uid)))
                 .contentType(MediaType.APPLICATION_JSON)
@@ -109,7 +109,7 @@ class AdminUserControllerTest {
         // service will throw because roles set empty
         when(userRoleService.addRoles(eq(uid), eq(Set.of()))).thenThrow(new IllegalArgumentException("No roles supplied"));
 
-        mockMvc.perform(post("/api/admin/users/{uid}/roles", uid)
+        mockMvc.perform(post("/api/v1/admin/users/{uid}/roles", uid)
                 .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))
                         .jwt(j -> j.claim("sub", uid)))
                 .contentType(MediaType.APPLICATION_JSON)
@@ -123,7 +123,7 @@ class AdminUserControllerTest {
         String uid = "uid-4";
         when(userRoleService.addRoles(eq(uid), anySet())).thenThrow(new IllegalArgumentException("Unknown role"));
 
-        mockMvc.perform(post("/api/admin/users/{uid}/roles", uid)
+        mockMvc.perform(post("/api/v1/admin/users/{uid}/roles", uid)
                 .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))
                         .jwt(j -> j.claim("sub", uid)))
                 .contentType(MediaType.APPLICATION_JSON)
@@ -137,7 +137,7 @@ class AdminUserControllerTest {
         String uid = "uid-5";
         when(userRoleService.removeRole(uid, "editor")).thenReturn(new UserRoleService.RemoveRoleResult(true, "EDITOR", uid));
 
-        mockMvc.perform(delete("/api/admin/users/{uid}/roles/{role}", uid, "editor")
+        mockMvc.perform(delete("/api/v1/admin/users/{uid}/roles/{role}", uid, "editor")
                 .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))
                         .jwt(j -> j.claim("sub", uid))))
             .andExpect(status().isOk())
@@ -152,7 +152,7 @@ class AdminUserControllerTest {
         String uid = "uid-6";
         when(userRoleService.removeRole(uid, "admin")).thenReturn(new UserRoleService.RemoveRoleResult(false, "ADMIN", uid));
 
-        mockMvc.perform(delete("/api/admin/users/{uid}/roles/{role}", uid, "admin")
+        mockMvc.perform(delete("/api/v1/admin/users/{uid}/roles/{role}", uid, "admin")
                 .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))
                         .jwt(j -> j.claim("sub", uid))))
             .andExpect(status().isNotModified())
@@ -167,7 +167,7 @@ class AdminUserControllerTest {
         String uid = "uid-7";
         when(userRoleService.syncClaims(uid, true)).thenReturn(new UserRoleService.SyncResult(uid, true));
 
-        mockMvc.perform(post("/api/admin/users/{uid}/roles/sync", uid)
+        mockMvc.perform(post("/api/v1/admin/users/{uid}/roles/sync", uid)
                 .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))
                         .jwt(j -> j.claim("sub", uid)))
                 .param("force", "true"))
@@ -185,7 +185,7 @@ class AdminUserControllerTest {
         String pathUid = "path-missing";
         when(userRoleService.getRoles(pathUid)).thenThrow(new EntityNotFoundException("User not found"));
 
-        mockMvc.perform(get("/api/admin/users/{uid}/roles", pathUid)
+        mockMvc.perform(get("/api/v1/admin/users/{uid}/roles", pathUid)
                 .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))
                         .jwt(j -> j.claim("sub", jwtUid))))
             .andExpect(status().isNotFound())
@@ -212,7 +212,7 @@ class AdminUserControllerTest {
         when(roleRequestService.adminList(any(), any(), any(Pageable.class)))
             .thenAnswer(inv -> new PageImpl<>(java.util.List.of(dto), (Pageable) inv.getArgument(2), 1));
 
-        mockMvc.perform(get("/api/admin/users/roles/requests")
+        mockMvc.perform(get("/api/v1/admin/users/roles/requests")
             .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))
                 .jwt(j -> j.claim("sub", "admin-user")))
             .param("size", "5"))
@@ -227,7 +227,7 @@ class AdminUserControllerTest {
         RoleRequestDto dto = makeDto(id, "req-detail", RoleRequestStatus.PENDING);
         when(roleRequestService.get(java.util.UUID.fromString(id))).thenReturn(dto);
 
-        mockMvc.perform(get("/api/admin/users/roles/requests/{id}", java.util.UUID.fromString(id))
+        mockMvc.perform(get("/api/v1/admin/users/roles/requests/{id}", java.util.UUID.fromString(id))
             .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))
                 .jwt(j -> j.claim("sub", "admin-user"))))
             .andExpect(status().isOk())
@@ -243,7 +243,7 @@ class AdminUserControllerTest {
         when(roleRequestService.approve(eq(java.util.UUID.fromString(id)), eq("admin-user"), any()))
             .thenReturn(approved);
 
-        mockMvc.perform(post("/api/admin/users/roles/requests/{id}/approve", java.util.UUID.fromString(id))
+        mockMvc.perform(post("/api/v1/admin/users/roles/requests/{id}/approve", java.util.UUID.fromString(id))
             .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))
                 .jwt(j -> j.claim("sub", "admin-user")))
             .contentType(MediaType.APPLICATION_JSON)
@@ -261,7 +261,7 @@ class AdminUserControllerTest {
         when(roleRequestService.reject(eq(java.util.UUID.fromString(id)), eq("admin-user"), any()))
             .thenReturn(rejected);
 
-        mockMvc.perform(post("/api/admin/users/roles/requests/{id}/reject", java.util.UUID.fromString(id))
+        mockMvc.perform(post("/api/v1/admin/users/roles/requests/{id}/reject", java.util.UUID.fromString(id))
             .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))
                 .jwt(j -> j.claim("sub", "admin-user")))
             .contentType(MediaType.APPLICATION_JSON)
@@ -277,7 +277,7 @@ class AdminUserControllerTest {
         when(roleRequestService.approve(eq(java.util.UUID.fromString(id)), eq("admin-user"), any()))
             .thenThrow(new IllegalStateException("Only PENDING requests can be approved"));
 
-        mockMvc.perform(post("/api/admin/users/roles/requests/{id}/approve", java.util.UUID.fromString(id))
+        mockMvc.perform(post("/api/v1/admin/users/roles/requests/{id}/approve", java.util.UUID.fromString(id))
             .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))
                 .jwt(j -> j.claim("sub", "admin-user")))
             .contentType(MediaType.APPLICATION_JSON)
@@ -293,7 +293,7 @@ class AdminUserControllerTest {
         when(roleRequestService.reject(eq(java.util.UUID.fromString(id)), eq("admin-user"), any()))
             .thenThrow(new IllegalStateException("Only PENDING requests can be rejected"));
 
-        mockMvc.perform(post("/api/admin/users/roles/requests/{id}/reject", java.util.UUID.fromString(id))
+        mockMvc.perform(post("/api/v1/admin/users/roles/requests/{id}/reject", java.util.UUID.fromString(id))
             .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))
                 .jwt(j -> j.claim("sub", "admin-user")))
             .contentType(MediaType.APPLICATION_JSON)
@@ -309,7 +309,7 @@ class AdminUserControllerTest {
         when(roleRequestService.get(java.util.UUID.fromString(id)))
             .thenThrow(new EntityNotFoundException("Role request not found"));
 
-        mockMvc.perform(get("/api/admin/users/roles/requests/{id}", java.util.UUID.fromString(id))
+        mockMvc.perform(get("/api/v1/admin/users/roles/requests/{id}", java.util.UUID.fromString(id))
             .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))
                 .jwt(j -> j.claim("sub", "admin-user"))))
             .andExpect(status().isNotFound())
@@ -318,7 +318,7 @@ class AdminUserControllerTest {
 
         @Test
         void adminList_forbiddenWithoutAdminRole_returns403() throws Exception {
-        mockMvc.perform(get("/api/admin/users/roles/requests")
+        mockMvc.perform(get("/api/v1/admin/users/roles/requests")
             .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_USER"))
                 .jwt(j -> j.claim("sub", "some-user"))))
             .andExpect(status().isForbidden());
@@ -326,7 +326,7 @@ class AdminUserControllerTest {
 
         @Test
         void adminDetail_invalidUuid_returns400TypeMismatch() throws Exception {
-        mockMvc.perform(get("/api/admin/users/roles/requests/{id}", "not-a-uuid")
+        mockMvc.perform(get("/api/v1/admin/users/roles/requests/{id}", "not-a-uuid")
             .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))
                 .jwt(j -> j.claim("sub", "admin-user"))))
             .andExpect(status().isBadRequest())
