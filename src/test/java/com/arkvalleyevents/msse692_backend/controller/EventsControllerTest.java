@@ -263,17 +263,51 @@ class EventsControllerTest {
   }
 
   @Test
-  void listMyEvents_delegatesToOwnerService_andReturnsPage() throws Exception {
+  void listMyEvents_withoutFilters_delegatesToFilteredService_andReturnsPage() throws Exception {
     EventDto dto = new EventDto();
     dto.setEventId(777L);
     Page<EventDto> page = new PageImpl<>(java.util.List.of(dto));
-    when(eventService.listEventsByOwner(eq(10L), eq(0), eq(20), eq("-startAt"))).thenReturn(page);
+    when(eventService.listEventsByOwnerFiltered(eq(10L), anyMap(), eq(0), eq(20), eq("-startAt"))).thenReturn(page);
 
     mockMvc.perform(get("/api/v1/events/mine").param("sort", "-startAt"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.items[0].eventId").value(777L));
 
-    verify(eventService).listEventsByOwner(eq(10L), eq(0), eq(20), eq("-startAt"));
+    @SuppressWarnings("unchecked")
+    ArgumentCaptor<java.util.Map<String,String>> capFilters = (ArgumentCaptor<java.util.Map<String,String>>) (ArgumentCaptor<?>) ArgumentCaptor.forClass(java.util.Map.class);
+    verify(eventService).listEventsByOwnerFiltered(eq(10L), capFilters.capture(), eq(0), eq(20), eq("-startAt"));
+    java.util.Map<String,String> filters = capFilters.getValue();
+    org.junit.jupiter.api.Assertions.assertTrue(filters.isEmpty(), "Expected empty filters map when no filter params provided");
+  }
+
+  @Test
+  void listMyEvents_withFilters_delegatesToFilteredService_andReturnsPage() throws Exception {
+    EventDto dto = new EventDto();
+    dto.setEventId(888L);
+    Page<EventDto> page = new PageImpl<>(java.util.List.of(dto));
+    when(eventService.listEventsByOwnerFiltered(eq(10L), anyMap(), eq(0), eq(20), eq("-startAt"))).thenReturn(page);
+
+    mockMvc.perform(get("/api/v1/events/mine")
+            .param("sort", "-startAt")
+            .param("eventType", "Concert")
+            .param("status", "PUBLISHED")
+            .param("from", "2025-10-14T05:09:08.338Z")
+            .param("to", "2025-10-15T05:09:08.338Z"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items[0].eventId").value(888L));
+
+    @SuppressWarnings("unchecked")
+    ArgumentCaptor<java.util.Map<String,String>> capFilters = (ArgumentCaptor<java.util.Map<String,String>>) (ArgumentCaptor<?>) ArgumentCaptor.forClass(java.util.Map.class);
+    verify(eventService).listEventsByOwnerFiltered(eq(10L), capFilters.capture(), eq(0), eq(20), eq("-startAt"));
+    java.util.Map<String,String> filters = capFilters.getValue();
+    org.junit.jupiter.api.Assertions.assertEquals("Concert", filters.get("eventType"));
+    org.junit.jupiter.api.Assertions.assertEquals("PUBLISHED", filters.get("status"));
+    org.junit.jupiter.api.Assertions.assertEquals("2025-10-14T05:09:08.338Z", filters.get("from"));
+    org.junit.jupiter.api.Assertions.assertEquals("2025-10-15T05:09:08.338Z", filters.get("to"));
+    // Ensure pagination/sort params not leaked into filters
+    org.junit.jupiter.api.Assertions.assertFalse(filters.containsKey("page"));
+    org.junit.jupiter.api.Assertions.assertFalse(filters.containsKey("size"));
+    org.junit.jupiter.api.Assertions.assertFalse(filters.containsKey("sort"));
   }
 
   @Test
@@ -282,5 +316,19 @@ class EventsControllerTest {
     mockMvc.perform(get("/api/v1/events/mine"))
         .andExpect(status().isForbidden())
         .andExpect(jsonPath("$.code").value("ACCESS_DENIED"));
+  }
+
+  @Test
+  void listMyEvents_withoutSort_usesDefaultAscendingSort() throws Exception {
+    EventDto dto = new EventDto();
+    dto.setEventId(999L);
+    Page<EventDto> page = new PageImpl<>(java.util.List.of(dto));
+    when(eventService.listEventsByOwnerFiltered(eq(10L), anyMap(), eq(0), eq(20), eq("startAt,asc"))).thenReturn(page);
+
+    mockMvc.perform(get("/api/v1/events/mine"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items[0].eventId").value(999L));
+
+    verify(eventService).listEventsByOwnerFiltered(eq(10L), anyMap(), eq(0), eq(20), eq("startAt,asc"));
   }
 }

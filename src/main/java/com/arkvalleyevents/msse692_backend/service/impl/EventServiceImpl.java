@@ -263,6 +263,26 @@ public class EventServiceImpl implements EventService {
 
     @Override
     @Transactional(readOnly = true)
+    public Page<EventDto> listEventsByOwnerFiltered(Long ownerUserId, Map<String, String> filters, int page, int size, String sort) {
+        if (ownerUserId == null) {
+            throw new IllegalArgumentException("ownerUserId cannot be null for strict ownership listing");
+        }
+        Map<String, String> effective = new java.util.HashMap<>(filters == null ? java.util.Map.of() : filters);
+        // Force owner constraint; do NOT add ownerOrPublished expansion.
+        effective.put("createdByUserId", String.valueOf(ownerUserId));
+        Pageable pageable = PageRequest.of(Math.max(page, 0), Math.max(size, 1), parseSort(sort));
+        log.debug("Listing owner events (filtered) ownerUserId={}, filters={}, page={}, size={}, sort='{}'", ownerUserId, effective, page, size, sort);
+        Specification<Event> spec = buildSpecification(effective);
+        Page<Event> pageResult = (spec == null)
+                ? eventRepository.findAll(pageable)
+                : eventRepository.findAll(spec, pageable);
+        Page<EventDto> dtoPage = pageResult.map(mapper::toDto);
+        log.info("Listed {} owner-filtered events of total {} (page={}, size={})", dtoPage.getNumberOfElements(), dtoPage.getTotalElements(), page, size);
+        return dtoPage;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<EventDto> listUpcoming(LocalDateTime from, int limit) {
         Pageable pageable = PageRequest.of(0, Math.max(limit, 1), Sort.by(Sort.Direction.ASC, "startAt"));
         log.debug("Listing upcoming events starting after {} (limit={})", from, limit);
@@ -392,6 +412,8 @@ public class EventServiceImpl implements EventService {
         boolean ownerOrPublished = Boolean.parseBoolean(filters.getOrDefault("ownerOrPublished", "false"));
         String fromStr = filters.get("from");
         String toStr = filters.get("to");
+        // Accept both 'eventType' and legacy 'type' for client flexibility
+        String eventTypeStr = filters.get("eventType") != null ? filters.get("eventType") : filters.get("type");
 
         // Build specification
         Specification<Event> spec = (root, query, cb) -> cb.conjunction();
@@ -426,6 +448,16 @@ public class EventServiceImpl implements EventService {
                 } catch (NumberFormatException ex) {
                     log.debug("Ignoring invalid createdByUserId filter: {}", ownerStr);
                 }
+            }
+        }
+
+        // eventType filter
+        if (eventTypeStr != null && !eventTypeStr.isBlank()) {
+            try {
+                com.arkvalleyevents.msse692_backend.model.EventType et = com.arkvalleyevents.msse692_backend.model.EventType.valueOf(eventTypeStr.trim().toUpperCase());
+                spec = spec.and((root, query, cbx) -> cbx.equal(root.get("eventType"), et));
+            } catch (Exception ex) {
+                log.debug("Ignoring invalid eventType filter: {}", eventTypeStr);
             }
         }
 

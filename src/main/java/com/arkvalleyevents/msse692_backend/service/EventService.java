@@ -64,6 +64,12 @@ public interface EventService {
      */
     Page<EventDto> listEventsByOwner(Long ownerUserId, int page, int size, String sort);
 
+    /**
+     * Strict ownership listing with optional filters (eventType, from, to) applied.
+     * Mirrors general list filtering but without role-based expansion.
+     */
+    Page<EventDto> listEventsByOwnerFiltered(Long ownerUserId, Map<String, String> filters, int page, int size, String sort);
+
     /** Lightweight helper for “what’s coming up from time X” with a hard cap. */
     List<EventDto> listUpcoming(LocalDateTime from, int limit);
 

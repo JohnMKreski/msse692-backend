@@ -327,7 +327,11 @@ public class EventsController {
     public EventPageResponse listMyEvents(
             @RequestParam(name = "page", required = false, defaultValue = "0") @Min(0) int page,
             @RequestParam(name = "size", required = false, defaultValue = "20") @Min(1) @Max(100) int size,
-            @RequestParam(name = "sort", required = false) String sort
+            @RequestParam(name = "sort", required = false) String sort,
+            @RequestParam(name = "eventType", required = false) String eventType,
+            @RequestParam(name = "status", required = false) String status,
+            @RequestParam(name = "from", required = false) String from,
+            @RequestParam(name = "to", required = false) String to
     ) {
         String safeSort = normalizeSort(sort);
         UserContext uc = userContextProvider.current();
@@ -336,7 +340,13 @@ public class EventsController {
             // Treated as unauthorized – could also throw a dedicated exception mapped to 401/403
             throw new org.springframework.security.access.AccessDeniedException("User context missing");
         }
-        Page<EventDto> pageResult = eventService.listEventsByOwner(uid, Math.max(page, 0), Math.max(size, 1), safeSort);
+        // Build optional filters (parity with general list; graceful ignore invalid values handled in spec builder)
+        java.util.Map<String, String> filters = new java.util.HashMap<>();
+        if (eventType != null && !eventType.isBlank()) filters.put("eventType", eventType.trim());
+        if (status != null && !status.isBlank()) filters.put("status", status.trim());
+        if (from != null && !from.isBlank()) filters.put("from", from.trim());
+        if (to != null && !to.isBlank()) filters.put("to", to.trim());
+        Page<EventDto> pageResult = eventService.listEventsByOwnerFiltered(uid, filters, Math.max(page, 0), Math.max(size, 1), safeSort);
         return EventPageResponse.from(pageResult);
     }
 
