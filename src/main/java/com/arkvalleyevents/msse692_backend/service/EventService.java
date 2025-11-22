@@ -58,6 +58,18 @@ public interface EventService {
     /** Paged list with role-aware defaults applied based on UserContext. */
     Page<EventDto> listEventsPageScoped(Map<String, String> filters, int page, int size, String sort, UserContext userContext);
 
+    /**
+     * Strict ownership listing (no role-based expansion): returns ONLY events whose createdByUserId matches ownerUserId,
+     * regardless of status. Intended for "My Events" view so editors/admins don't see other published events mixed in.
+     */
+    Page<EventDto> listEventsByOwner(Long ownerUserId, int page, int size, String sort);
+
+    /**
+     * Strict ownership listing with optional filters (eventType, from, to) applied.
+     * Mirrors general list filtering but without role-based expansion.
+     */
+    Page<EventDto> listEventsByOwnerFiltered(Long ownerUserId, Map<String, String> filters, int page, int size, String sort);
+
     /** Lightweight helper for “what’s coming up from time X” with a hard cap. */
     List<EventDto> listUpcoming(LocalDateTime from, int limit);
 

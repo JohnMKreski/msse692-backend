@@ -63,6 +63,8 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/v1/events").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/events/*").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/enums/**").permitAll()
+                // Enforce admin-only access for admin user management endpoints at HTTP layer
+                .requestMatchers("/api/admin/users/**").hasRole("ADMIN")
                 .anyRequest().authenticated()
             )
             .oauth2ResourceServer(oauth2 -> oauth2
@@ -107,6 +109,8 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/v1/events").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/events/*").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/enums/**").permitAll()
+                // Enforce admin-only access for admin user management endpoints at HTTP layer
+                .requestMatchers("/api/admin/users/**").hasRole("ADMIN")
                 .anyRequest().authenticated()
             )
             .oauth2ResourceServer(oauth2 -> oauth2

@@ -12,6 +12,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
@@ -107,6 +108,12 @@ public class RestExceptionHandler {
         String message = ex.getReason() != null ? ex.getReason() : ex.getMessage();
         ApiErrorDto body = build(status, status.is4xxClientError() ? "CLIENT_ERROR" : "ERROR", message, req, null);
         return ResponseEntity.status(ex.getStatusCode()).body(body);
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ApiErrorDto> handleAccessDenied(AccessDeniedException ex, HttpServletRequest req) {
+        ApiErrorDto body = build(HttpStatus.FORBIDDEN, "ACCESS_DENIED", ex.getMessage(), req, null);
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(body);
     }
 
     @ExceptionHandler(Exception.class)
