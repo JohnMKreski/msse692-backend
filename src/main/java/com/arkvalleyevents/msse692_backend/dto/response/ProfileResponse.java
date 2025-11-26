@@ -1,15 +1,31 @@
 package com.arkvalleyevents.msse692_backend.dto.response;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 
+import com.arkvalleyevents.msse692_backend.model.ProfileType;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+import lombok.Data;
+import lombok.Getter;
+@Data
+@Getter
 public class ProfileResponse {
 	private Long id;
-	private Long userId;
+	@JsonProperty("user_id")
+	private Long userId; // Maps to profiles.user_id FK (AppUser.id)
 	private String displayName;
 	private boolean completed;
 	private boolean verified;
 	private OffsetDateTime createdAt;
 	private OffsetDateTime updatedAt;
+
+	//Added fields
+	private ProfileType profileType;
+    private String location;
+    private String description;
+    private List<String> socials;
+    private List<String> websites;
 
 	public Long getId() { return id; }
 	public void setId(Long id) { this.id = id; }
