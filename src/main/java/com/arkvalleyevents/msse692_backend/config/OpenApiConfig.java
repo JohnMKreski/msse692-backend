@@ -6,6 +6,11 @@ import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.security.SecurityRequirement;
 import io.swagger.v3.oas.models.security.SecurityScheme;
 import io.swagger.v3.oas.models.servers.Server;
+import io.swagger.v3.oas.models.media.Content;
+import io.swagger.v3.oas.models.media.MediaType;
+import io.swagger.v3.oas.models.media.Schema;
+import io.swagger.v3.oas.models.responses.ApiResponse;
+import org.springdoc.core.customizers.OpenApiCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.ViewControllerRegistry;
@@ -59,4 +64,58 @@ public class OpenApiConfig implements WebMvcConfigurer {
     public void addViewControllers(ViewControllerRegistry registry) {
         registry.addRedirectViewController("/", "/swagger-ui/index.html");
     }
+
+        /**
+         * Global injection of standard error responses (400/401/403/404/409/500) into every operation.
+         * Controllers can omit repetitive @ApiResponses; success codes may still be declared locally.
+         */
+        @Bean
+        public OpenApiCustomizer standardErrorResponsesCustomiser() {
+                return openApi -> {
+                        // Ensure ApiErrorDto schema exists (if class scanned this is optional; define minimal fallback)
+                        Components components = openApi.getComponents();
+                        if (components.getSchemas() == null || !components.getSchemas().containsKey("ApiErrorDto")) {
+                                Schema<?> errSchema = new Schema<>()
+                                                .type("object")
+                                                .addProperty("timestamp", new Schema<>().type("string").format("date-time"))
+                                                .addProperty("status", new Schema<>().type("integer"))
+                                                .addProperty("error", new Schema<>().type("string"))
+                                                .addProperty("message", new Schema<>().type("string"))
+                                                .addProperty("path", new Schema<>().type("string"));
+                                components.addSchemas("ApiErrorDto", errSchema);
+                        }
+
+                        // Build reusable responses
+                        ApiResponse badRequest = buildErrorResponse("Bad Request");
+                        ApiResponse unauthorized = buildErrorResponse("Unauthorized");
+                        ApiResponse forbidden = buildErrorResponse("Forbidden");
+                        ApiResponse notFound = buildErrorResponse("Not Found");
+                        ApiResponse conflict = buildErrorResponse("Conflict");
+                        ApiResponse serverError = buildErrorResponse("Internal Server Error");
+
+                        openApi.getPaths().values().forEach(pathItem -> pathItem.readOperations().forEach(op -> {
+                                // Always include common error responses if absent
+                                op.getResponses().putIfAbsent("400", badRequest);
+                                op.getResponses().putIfAbsent("401", unauthorized);
+                                op.getResponses().putIfAbsent("403", forbidden);
+                                op.getResponses().putIfAbsent("404", notFound);
+                                // Include 409 for write operations (POST/PUT/PATCH)
+                                String verb = op.getOperationId();
+                                if (verb != null) {
+                                        String vLower = verb.toLowerCase();
+                                        if (vLower.startsWith("create") || vLower.startsWith("update") || vLower.startsWith("patch") || vLower.startsWith("upsert") || vLower.startsWith("post") || vLower.startsWith("put")) {
+                                                op.getResponses().putIfAbsent("409", conflict);
+                                        }
+                                }
+                                op.getResponses().putIfAbsent("500", serverError);
+                        }));
+                };
+        }
+
+        private ApiResponse buildErrorResponse(String description) {
+                return new ApiResponse()
+                                .description(description)
+                                .content(new Content().addMediaType("application/json",
+                                                new MediaType().schema(new Schema<>().$ref("#/components/schemas/ApiErrorDto"))));
+        }
 }

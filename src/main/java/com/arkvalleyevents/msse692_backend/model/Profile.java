@@ -2,6 +2,7 @@ package com.arkvalleyevents.msse692_backend.model;
 
 import jakarta.persistence.*;
 import java.time.OffsetDateTime;
+import java.util.List;
 
 @Entity
 @Table(name = "profiles")
@@ -16,6 +17,23 @@ public class Profile {
 
     @Column(name = "display_name", nullable = false, length = 200)
     private String displayName;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "profile_type", nullable = false, length = 16)
+    private ProfileType profileType = ProfileType.OTHER;
+
+    @Column(name = "location", length = 255)
+    private String location;
+
+    @Column(name = "description")
+    private String description;
+
+    // Store as JSON string for portability; service/mapper can parse to arrays.
+    @Column(name = "socials", columnDefinition = "jsonb")
+    private String socials; // JSON array string
+
+    @Column(name = "websites", columnDefinition = "jsonb")
+    private String websites; // JSON array string
 
     @Column(name = "completed", nullable = false)
     private boolean completed = true;
@@ -49,6 +67,21 @@ public class Profile {
 
     public String getDisplayName() { return displayName; }
     public void setDisplayName(String displayName) { this.displayName = displayName; }
+
+    public ProfileType getProfileType() { return profileType; }
+    public void setProfileType(ProfileType profileType) { this.profileType = profileType; }
+
+    public String getLocation() { return location; }
+    public void setLocation(String location) { this.location = location; }
+
+    public String getDescription() { return description; }
+    public void setDescription(String description) { this.description = description; }
+
+    public String getSocials() { return socials; }
+    public void setSocials(String socials) { this.socials = socials; }
+
+    public String getWebsites() { return websites; }
+    public void setWebsites(String websites) { this.websites = websites; }
 
     public boolean isCompleted() { return completed; }
     public void setCompleted(boolean completed) { this.completed = completed; }
