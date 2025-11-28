@@ -9,6 +9,8 @@ import com.arkvalleyevents.msse692_backend.repository.AppUserRepository;
 import com.arkvalleyevents.msse692_backend.repository.ProfileRepository;
 import com.arkvalleyevents.msse692_backend.model.Profile;
 import com.arkvalleyevents.msse692_backend.service.ProfileService;
+import com.arkvalleyevents.msse692_backend.service.mapping.ProfileMapper;
+import com.arkvalleyevents.msse692_backend.dto.response.ProfileResponse;
 import com.arkvalleyevents.msse692_backend.dto.request.ProfileRequest;
 import java.time.OffsetDateTime;
 import java.util.Optional;
@@ -18,8 +20,10 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.http.MediaType;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.junit.jupiter.api.BeforeEach;
 
 @WebMvcTest(ProfileController.class)
 @AutoConfigureMockMvc // enable security filters so jwt() request post processor populates SecurityContext
@@ -32,11 +36,33 @@ class ProfileControllerTest {
     @org.springframework.beans.factory.annotation.Autowired
     private ProfileControllerTest.FakeProfileService profileService;
 
+    @MockitoBean
+    private ProfileMapper profileMapper;
+
     // Mock repository beans so the AppUserUpsertFilter (component) can be constructed without failing dependency lookup
     @MockitoBean
     private AppUserRepository appUserRepository;
     @MockitoBean
     private ProfileRepository profileRepository;
+
+    @BeforeEach
+    void defaultMapperSetup() {
+        org.mockito.Mockito.when(profileMapper.toResponse(org.mockito.ArgumentMatchers.any(Profile.class)))
+            .thenAnswer(inv -> {
+                Profile p = inv.getArgument(0);
+                ProfileResponse r = new ProfileResponse();
+                if (p.getUser() != null) r.setUserId(p.getUser().getId());
+                r.setDisplayName(p.getDisplayName());
+                r.setCompleted(p.isCompleted());
+                r.setVerified(p.isVerified());
+                r.setCreatedAt(p.getCreatedAt());
+                r.setUpdatedAt(p.getUpdatedAt());
+                r.setProfileType(p.getProfileType());
+                r.setLocation(p.getLocation());
+                r.setDescription(p.getDescription());
+                return r;
+            });
+    }
 
     @Test
     void getProfile_notFound_returns404() throws Exception {
@@ -84,7 +110,7 @@ class ProfileControllerTest {
 
     mockMvc.perform(post("/api/v1/profile")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"displayName\":\"New Name\"}")
+                .content("{\"displayName\":\"New Name\",\"profileType\":\"OTHER\"}")
         .with(jwt().jwt(j -> j.claim("sub", "uid-new"))))
             .andExpect(status().isCreated())
             .andExpect(jsonPath("$.displayName").value("New Name"));
@@ -113,11 +139,135 @@ class ProfileControllerTest {
         profileService.setNextUpsert(updated);
 
         mockMvc.perform(post("/api/v1/profile")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"displayName\":\"Updated Name\"}")
-                .with(jwt().jwt(j -> j.claim("sub", "uid-existing"))))
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("{\"displayName\":\"Updated Name\",\"profileType\":\"OTHER\"}")
+            .with(jwt().jwt(j -> j.claim("sub", "uid-existing"))))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.displayName").value("Updated Name"));
+    }
+
+    @Test
+    void createMyProfile_returns201() throws Exception {
+        Profile created = new Profile();
+        AppUser u = new AppUser();
+        u.setId(11L);
+        created.setUser(u);
+        created.setDisplayName("Mine");
+        profileService.setNextCreate(created);
+
+        mockMvc.perform(post("/api/v1/profile/create")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"displayName\":\"Mine\",\"profileType\":\"OTHER\"}")
+                .with(jwt()))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.displayName").value("Mine"));
+    }
+
+    @Test
+    void putMyProfile_returns200() throws Exception {
+        Profile updated = new Profile();
+        updated.setDisplayName("Full");
+        profileService.setNextUpdate(updated);
+
+        mockMvc.perform(put("/api/v1/profile")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"displayName\":\"Full\",\"profileType\":\"OTHER\"}")
+                .with(jwt()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.displayName").value("Full"));
+    }
+
+    @Test
+    void patchMyProfile_returns200_withoutValidation() throws Exception {
+        Profile patched = new Profile();
+        patched.setDisplayName("Keep");
+        profileService.setNextPatch(patched);
+
+        mockMvc.perform(patch("/api/v1/profile")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"description\":\"bio\"}")
+                .with(jwt()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.displayName").value("Keep"));
+    }
+
+    @Test
+    void deleteMyProfile_returns204() throws Exception {
+        mockMvc.perform(delete("/api/v1/profile").with(jwt()))
+            .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void getMyProfile_unauthorized_returns401() throws Exception {
+        mockMvc.perform(get("/api/v1/profile/me"))
+            .andExpect(status().isUnauthorized());
+    }
+
+    // ---- Admin endpoints ----
+    @Test
+    void admin_getProfileByUserId_unauthenticated_returns401() throws Exception {
+        // unauthorized when no JWT
+        mockMvc.perform(get("/api/v1/profile/55"))
+            .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void admin_getProfileByUserId_returns200() throws Exception {
+        Profile p = new Profile();
+        AppUser au = new AppUser();
+        au.setId(55L);
+        p.setUser(au);
+        p.setDisplayName("AdminView");
+        profileService.setNextAdminGet(Optional.of(p));
+
+        mockMvc.perform(get("/api/v1/profile/55")
+                .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.displayName").value("AdminView"));
+    }
+
+    @Test
+    void admin_createUpdateDelete_succeeds() throws Exception {
+        Profile created = new Profile();
+        created.setDisplayName("C");
+        profileService.setNextAdminCreate(created);
+
+        Profile updated = new Profile();
+        updated.setDisplayName("U");
+        profileService.setNextAdminUpdate(updated);
+
+        Profile patched = new Profile();
+        patched.setDisplayName("P");
+        profileService.setNextAdminPatch(patched);
+
+        // create
+        mockMvc.perform(post("/api/v1/profile/77/create")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"displayName\":\"C\",\"profileType\":\"OTHER\"}")
+                .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.displayName").value("C"));
+
+        // update
+        mockMvc.perform(put("/api/v1/profile/77")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"displayName\":\"U\",\"profileType\":\"OTHER\"}")
+                .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.displayName").value("U"));
+
+        // patch
+        mockMvc.perform(patch("/api/v1/profile/77")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"description\":\"d\"}")
+                .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.displayName").value("P"));
+
+        // delete
+        mockMvc.perform(delete("/api/v1/profile/77")
+                .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))))
+            .andExpect(status().isNoContent());
     }
 
     @org.springframework.boot.test.context.TestConfiguration
@@ -131,9 +281,23 @@ class ProfileControllerTest {
     static class FakeProfileService implements ProfileService {
         private Optional<Profile> nextGetCurrent = Optional.empty();
         private Profile nextUpsert;
+        private Profile nextCreate;
+        private Profile nextUpdate;
+        private Profile nextPatch;
+        private Optional<Profile> nextAdminGet = Optional.empty();
+        private Profile nextAdminCreate;
+        private Profile nextAdminUpdate;
+        private Profile nextAdminPatch;
 
         void setNextGetCurrent(Optional<Profile> p) { this.nextGetCurrent = p; }
         void setNextUpsert(Profile p) { this.nextUpsert = p; }
+        void setNextCreate(Profile p) { this.nextCreate = p; }
+        void setNextUpdate(Profile p) { this.nextUpdate = p; }
+        void setNextPatch(Profile p) { this.nextPatch = p; }
+        void setNextAdminGet(Optional<Profile> p) { this.nextAdminGet = p; }
+        void setNextAdminCreate(Profile p) { this.nextAdminCreate = p; }
+        void setNextAdminUpdate(Profile p) { this.nextAdminUpdate = p; }
+        void setNextAdminPatch(Profile p) { this.nextAdminPatch = p; }
 
         @Override
         public Optional<Profile> getCurrentProfile(String firebaseUid) { throw new UnsupportedOperationException(); }
@@ -146,5 +310,33 @@ class ProfileControllerTest {
 
         @Override
         public Profile upsertCurrentProfile(ProfileRequest request) { return nextUpsert; }
+
+        // ===== Added interface methods (not exercised by these tests) =====
+        @Override
+        public Profile createCurrentProfile(ProfileRequest request) { return nextCreate != null ? nextCreate : nextUpsert; }
+
+        @Override
+        public Profile updateCurrentProfile(ProfileRequest request) { return nextUpdate != null ? nextUpdate : nextUpsert; }
+
+        @Override
+        public Profile patchCurrentProfile(ProfileRequest request) { return nextPatch != null ? nextPatch : nextUpsert; }
+
+        @Override
+        public void deleteCurrentProfile() { /* no-op for test */ }
+
+        @Override
+        public Optional<Profile> getProfileByUserId(Long userId) { return nextAdminGet; }
+
+        @Override
+        public Profile createProfileForUser(Long userId, ProfileRequest request) { return nextAdminCreate; }
+
+        @Override
+        public Profile updateProfileForUser(Long userId, ProfileRequest request) { return nextAdminUpdate; }
+
+        @Override
+        public Profile patchProfileForUser(Long userId, ProfileRequest request) { return nextAdminPatch; }
+
+        @Override
+        public void deleteProfileForUser(Long userId) { /* no-op */ }
     }
 }
