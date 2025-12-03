@@ -64,7 +64,7 @@ app:
     firebase:
       audience: ${FIREBASE_PROJECT_ID}
   cors:
-    allowed-origins: https://app.example.com,https://www.app.example.com
+    allowed-origins: https://app.arkvalleyevents.com,https://www.arkvalleyevents.com
 management:
   endpoints.web.exposure.include: health,info
 logging:
