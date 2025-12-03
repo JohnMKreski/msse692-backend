@@ -33,6 +33,7 @@ public class Msse692BackendApplication {
    */
   private static void openSwaggerUI() throws IOException {
     String url = "http://localhost:8080/swagger-ui.html";
+    String prodUrl = "https://app.arkvalleyevents.com";
     Runtime rt = Runtime.getRuntime();
     String os = System.getProperty("os.name").toLowerCase();
 

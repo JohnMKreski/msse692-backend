@@ -2,7 +2,6 @@ package com.arkvalleyevents.msse692_backend.model;
 
 import jakarta.persistence.*;
 import java.time.OffsetDateTime;
-import java.util.List;
 
 @Entity
 @Table(name = "profiles")
