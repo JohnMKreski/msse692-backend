@@ -9,7 +9,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -19,16 +19,16 @@ public interface EventRepository extends JpaRepository<Event, Long>, JpaSpecific
 
     Optional<Event> findBySlug(String slug);
 
-    Page<Event> findByStartAtAfter(LocalDateTime from, Pageable pageable);
+    Page<Event> findByStartAtAfter(Instant from, Pageable pageable);
 
     List<Event> findByEventType(EventType eventType);
 
-    List<Event> findByStartAtBetween(LocalDateTime startAt, LocalDateTime endAt);
+    List<Event> findByStartAtBetween(Instant startAt, Instant endAt);
 
     List<Event> findByEventLocationContainingIgnoreCase(String eventLocation);
 
     Page<Event> findByStatusAndStartAtGreaterThanEqualOrderByStartAtAsc(
-            EventStatus status, LocalDateTime from, Pageable pageable
+            EventStatus status, Instant from, Pageable pageable
     );
 
     boolean existsBySlug(String slug);

@@ -177,6 +177,9 @@
 				<version>3.11.0</version>
 				<configuration>
 					<release>${java.version}</release>
+					<compilerArgs>
+                    	<arg>-Amapstruct.verbose=true</arg>
+                	</compilerArgs>
 					<annotationProcessorPaths>
 
 						<path>
@@ -196,10 +199,6 @@
                         </path>
 
 					</annotationProcessorPaths>
-
-					<compilerArgs>
-                    	<arg>-Amapstruct.verbose=true</arg>
-                	</compilerArgs>
 				</configuration>
 			</plugin>
 

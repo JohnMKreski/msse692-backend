@@ -7,9 +7,15 @@ It covers endpoint purpose, access rules, inputs, outputs, examples, and notes.
 - Auth: Bearer JWT (Firebase) when required
 - Roles: `ADMIN`, `EDITOR`, `USER` (anonymous has no role)
 - Time policy (current):
-  - Create/Update request uses `Instant` for `startAt`/`endAt` (e.g., `2025-11-20T02:00:00Z`).
-  - These map to server-local `LocalDateTime` for storage/display (server zone).
-  - Responses expose event `startAt`/`endAt` as `LocalDateTime` (no zone offset), and audit fields as `Instant`/`OffsetDateTime`.
+  - Community timezone is **America/Denver** (DST-aware) regardless of server/user location.
+  - Create/Update request uses `LocalDateTime` for `startAt`/`endAt` (e.g., `2026-02-01T19:15:00`). These are interpreted as America/Denver wall time.
+  - Storage uses `Instant` (absolute moment) for `Event.startAt`/`Event.endAt`.
+  - Responses expose event `startAt`/`endAt` as `OffsetDateTime` in America/Denver (includes explicit offset).
+  - DST transitions:
+    - Spring-forward gap local times are rejected (400).
+    - Fall-back overlap local times resolve deterministically using the **earlier offset**.
+
+Migration note (existing data): If the database contains historical `startAt`/`endAt` values created under the old policy (server-local `LocalDateTime` / inconsistent client assumptions), verify whether stored instants represent the intended America/Denver wall time. If not, a one-time data correction may be needed (re-interpret the old wall time as America/Denver and re-store as the corresponding `Instant`).
 - Pagination and sorting (events list): `page` (0-based, min 0), `size` (min 1, max 100), `sort` (whitelist: `startAt`, `eventName`; formats: `field`, `field,desc`, `-field`).
 - List response shape: `{ items: EventDto[], page: { number, size, totalElements, totalPages } }`.
 - Error shape: `{ timestamp, status, error, code, message, path, requestId, details? }` via global handler.
@@ -30,8 +36,8 @@ Base: `/api/v1/events`
   {
     "eventName": "Summer Jam",
     "type": "CONCERT",
-    "startAt": "2025-11-20T02:00:00Z",
-    "endAt": "2025-11-20T04:00:00Z",
+    "startAt": "2025-11-19T19:00:00",
+    "endAt": "2025-11-19T21:00:00",
     "eventLocation": "Salida, CO",
     "eventDescription": "Live music"
   }
@@ -58,8 +64,8 @@ Base: `/api/v1/events`
   {
     "eventName": "Summer Jam (Updated)",
     "type": "CONCERT",
-    "startAt": "2025-11-20T02:00:00Z",
-    "endAt": "2025-11-20T04:00:00Z",
+    "startAt": "2025-11-19T19:00:00",
+    "endAt": "2025-11-19T21:00:00",
     "eventLocation": "Salida, CO",
     "eventDescription": "Live music and food"
   }
@@ -173,7 +179,7 @@ Base: `/api/v1/events`
 - Method/Path: `GET /api/v1/events/public-upcoming`
 - Access: Public
 - Query params:
-  - `from`: Instant; default now; used to compute UTC LocalDateTime bound
+  - `from`: ISO `LocalDateTime` interpreted as America/Denver wall time; default now
   - `limit`: int; clamped 1..100; default 10
 - Responses: 200 List<EventDto> (only future `PUBLISHED` events, ascending by `startAt`)
 - Notes: Consider short `Cache-Control` and optional filter by `type`.

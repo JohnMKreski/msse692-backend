@@ -48,10 +48,10 @@ public class Event {
     private EventType eventType;
 
     @NotNull
-    private LocalDateTime startAt;
+    private Instant startAt; //changed from LocalDateTime to Instant to store in UTC and avoid timezone issues. The frontend will convert to local time for display and input.
 
     @NotNull
-    private LocalDateTime endAt;
+    private Instant endAt;
 
     private String eventLocation; //Needed with Venue entity? Venue has venue.getAddress() Will keep for events that's dont have a "venue" (e.g., woodsy)
 

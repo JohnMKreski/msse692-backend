@@ -21,6 +21,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -35,6 +36,7 @@ import com.arkvalleyevents.msse692_backend.model.EventStatus;
 import com.arkvalleyevents.msse692_backend.repository.EventRepository;
 
 import com.arkvalleyevents.msse692_backend.service.mapping.EventMapper;
+import com.arkvalleyevents.msse692_backend.util.CommunityTimezone;
 
 @Service
 @Transactional
@@ -283,7 +285,7 @@ public class EventServiceImpl implements EventService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<EventDto> listUpcoming(LocalDateTime from, int limit) {
+    public List<EventDto> listUpcoming(Instant from, int limit) {
         Pageable pageable = PageRequest.of(0, Math.max(limit, 1), Sort.by(Sort.Direction.ASC, "startAt"));
         log.debug("Listing upcoming events starting after {} (limit={})", from, limit);
 
@@ -296,7 +298,7 @@ public class EventServiceImpl implements EventService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<EventDto> listPublicUpcoming(LocalDateTime from, int limit) {
+    public List<EventDto> listPublicUpcoming(Instant from, int limit) {
         Pageable pageable = PageRequest.of(0, Math.max(limit, 1), Sort.by(Sort.Direction.ASC, "startAt"));
         log.debug("Listing PUBLIC upcoming events from {} (limit={})", from, limit);
         Page<Event> events = eventRepository.findByStatusAndStartAtGreaterThanEqualOrderByStartAtAsc(EventStatus.PUBLISHED, from, pageable);
@@ -342,12 +344,16 @@ public class EventServiceImpl implements EventService {
     @Override
     @Transactional(readOnly = true)
     public List<EventDto> getEventsByDate(LocalDate date) {
-        LocalDateTime startAt  = date.atStartOfDay();
-        LocalDateTime endAt  = date.plusDays(1).atStartOfDay().minusNanos(1);
+        // Interpret the provided date in the community timezone (America/Denver).
+        LocalDateTime startLocal = date.atStartOfDay();
+        LocalDateTime endLocal = date.plusDays(1).atStartOfDay().minusNanos(1);
 
-        log.debug("Fetching events occurring on {} ({} to {})", date, startAt , endAt );
+        Instant startInstant = CommunityTimezone.toInstant(startLocal);
+        Instant endInstant = CommunityTimezone.toInstant(endLocal);
 
-        List<Event> events = eventRepository.findByStartAtBetween(startAt , endAt );
+        log.debug("Fetching events occurring on {} ({} to {})", date, startLocal, endLocal);
+
+        List<Event> events = eventRepository.findByStartAtBetween(startInstant, endInstant);
         List<EventDto> dtos = events.stream().map(mapper::toDto).toList();
 
         log.info("Retrieved {} events on {}", dtos.size(), date);
@@ -461,19 +467,22 @@ public class EventServiceImpl implements EventService {
             }
         }
 
-        // Optional date range filters (ISO-8601 LocalDateTime)
+        // Optional date range filters (ISO-8601 LocalDateTime interpreted as America/Denver wall time)
         if (fromStr != null && !fromStr.isBlank()) {
             try {
-                LocalDateTime from = LocalDateTime.parse(fromStr.trim());
-                spec = spec.and((root, query, cbx) -> cbx.greaterThanOrEqualTo(root.get("startAt"), from));
+                LocalDateTime fromLocal = LocalDateTime.parse(fromStr.trim());
+                Instant fromInstant = CommunityTimezone.toInstant(fromLocal);
+                spec = spec.and((root, query, cbx) -> cbx.greaterThanOrEqualTo(root.get("startAt"), fromInstant));
             } catch (Exception ex) {
                 log.debug("Ignoring invalid 'from' filter: {}", fromStr);
             }
         }
+
         if (toStr != null && !toStr.isBlank()) {
             try {
-                LocalDateTime to = LocalDateTime.parse(toStr.trim());
-                spec = spec.and((root, query, cbx) -> cbx.lessThanOrEqualTo(root.get("startAt"), to));
+                LocalDateTime toLocal = LocalDateTime.parse(toStr.trim());
+                Instant toInstant = CommunityTimezone.toInstant(toLocal);
+                spec = spec.and((root, query, cbx) -> cbx.lessThanOrEqualTo(root.get("startAt"), toInstant));
             } catch (Exception ex) {
                 log.debug("Ignoring invalid 'to' filter: {}", toStr);
             }

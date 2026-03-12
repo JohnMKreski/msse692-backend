@@ -18,6 +18,7 @@ import com.arkvalleyevents.msse692_backend.dto.request.UpdateEventDto;
 import com.arkvalleyevents.msse692_backend.security.policy.EventAccessPolicy;
 import com.arkvalleyevents.msse692_backend.security.context.UserContextProvider;
 import com.arkvalleyevents.msse692_backend.security.context.UserContext;
+import java.time.Instant;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.mockito.ArgumentCaptor;
@@ -67,8 +68,8 @@ class EventsControllerTest {
                                 {
                                   "eventName": "Spring Festival",
                                   "typeDisplayName": "Concert",
-                                  "startAt": "2025-10-14T05:09:08.338Z",
-                                  "endAt": "2025-10-14T07:00:00.000Z",
+                                  "startAt": "2025-10-14T05:09:08.338",
+                                  "endAt": "2025-10-14T07:00:00.000",
                                   "eventLocation": "Downtown",
                                   "eventDescription": "Music & food"
                                 }
@@ -98,8 +99,8 @@ class EventsControllerTest {
         {
           "eventName": "Updated Event",
           "typeDisplayName": "Concert",
-          "startAt": "2025-10-14T05:09:08.338Z",
-          "endAt": "2025-10-14T07:00:00.000Z",
+          "startAt": "2025-10-14T05:09:08.338",
+          "endAt": "2025-10-14T07:00:00.000",
           "eventLocation": "Downtown",
           "eventDescription": "Music & food"
         }
@@ -220,6 +221,33 @@ class EventsControllerTest {
   }
 
   @Test
+  void listPublicUpcoming_springForwardGap_rejected400() throws Exception {
+    // 2026-03-08T02:30 does not exist in America/Denver (spring-forward gap).
+    mockMvc.perform(get("/api/v1/events/public-upcoming")
+            .param("from", "2026-03-08T02:30:00")
+            .param("limit", "10"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.code").value("INVALID_ARGUMENT"));
+
+    verify(eventService, never()).listPublicUpcoming(any(), anyInt());
+  }
+
+  @Test
+  void listPublicUpcoming_fallBackOverlap_usesEarlierOffsetDeterministically() throws Exception {
+    when(eventService.listPublicUpcoming(any(), eq(10))).thenReturn(java.util.List.of());
+
+    mockMvc.perform(get("/api/v1/events/public-upcoming")
+            .param("from", "2026-11-01T01:30:00")
+            .param("limit", "10"))
+        .andExpect(status().isOk());
+
+    ArgumentCaptor<Instant> fromCap = ArgumentCaptor.forClass(Instant.class);
+    verify(eventService).listPublicUpcoming(fromCap.capture(), eq(10));
+    // Earlier offset policy: 01:30 MDT -> 07:30Z (the later offset would be 08:30Z).
+    org.junit.jupiter.api.Assertions.assertEquals(Instant.parse("2026-11-01T07:30:00Z"), fromCap.getValue());
+  }
+
+  @Test
   void listEvents_delegatesToScopedService_andReturnsPage() throws Exception {
     EventDto dto = new EventDto();
     dto.setEventId(123L);
@@ -291,8 +319,8 @@ class EventsControllerTest {
             .param("sort", "-startAt")
             .param("eventType", "Concert")
             .param("status", "PUBLISHED")
-            .param("from", "2025-10-14T05:09:08.338Z")
-            .param("to", "2025-10-15T05:09:08.338Z"))
+            .param("from", "2025-10-14T05:09:08.338")
+            .param("to", "2025-10-15T05:09:08.338"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.items[0].eventId").value(888L));
 
@@ -302,8 +330,8 @@ class EventsControllerTest {
     java.util.Map<String,String> filters = capFilters.getValue();
     org.junit.jupiter.api.Assertions.assertEquals("Concert", filters.get("eventType"));
     org.junit.jupiter.api.Assertions.assertEquals("PUBLISHED", filters.get("status"));
-    org.junit.jupiter.api.Assertions.assertEquals("2025-10-14T05:09:08.338Z", filters.get("from"));
-    org.junit.jupiter.api.Assertions.assertEquals("2025-10-15T05:09:08.338Z", filters.get("to"));
+    org.junit.jupiter.api.Assertions.assertEquals("2025-10-14T05:09:08.338", filters.get("from"));
+    org.junit.jupiter.api.Assertions.assertEquals("2025-10-15T05:09:08.338", filters.get("to"));
     // Ensure pagination/sort params not leaked into filters
     org.junit.jupiter.api.Assertions.assertFalse(filters.containsKey("page"));
     org.junit.jupiter.api.Assertions.assertFalse(filters.containsKey("size"));

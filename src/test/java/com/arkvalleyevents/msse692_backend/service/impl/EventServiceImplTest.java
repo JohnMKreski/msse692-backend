@@ -8,8 +8,10 @@ import com.arkvalleyevents.msse692_backend.model.Event;
 import com.arkvalleyevents.msse692_backend.model.EventStatus;
 import com.arkvalleyevents.msse692_backend.model.EventType;
 import com.arkvalleyevents.msse692_backend.repository.EventRepository;
+import com.arkvalleyevents.msse692_backend.security.policy.EventListPolicy;
 import com.arkvalleyevents.msse692_backend.service.EventAuditService;
 import com.arkvalleyevents.msse692_backend.service.mapping.EventMapper;
+import com.arkvalleyevents.msse692_backend.util.CommunityTimezone;
 import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -41,6 +43,7 @@ class EventServiceImplTest {
     @Mock private EventRepository eventRepository;
     @Mock private EventMapper mapper;
     @Mock private EventAuditService auditService;
+    @Mock private EventListPolicy eventListPolicy;
 
     @InjectMocks private EventServiceImpl service;
 
@@ -55,17 +58,17 @@ class EventServiceImplTest {
         newEventDto = new CreateEventDto();
         newEventDto.setEventName("Spring Bash 2025");
         newEventDto.setType(EventType.CONCERT);
-    // DTO now uses Instant; choose fixed instants corresponding to the intended local times
-    newEventDto.setStartAt(Instant.parse("2025-03-22T01:00:00Z"));
-    newEventDto.setEndAt(Instant.parse("2025-03-22T04:00:00Z"));
+        // DTO uses LocalDateTime (community wall clock time).
+        newEventDto.setStartAt(LocalDateTime.of(2025, 3, 21, 18, 0));
+        newEventDto.setEndAt(LocalDateTime.of(2025, 3, 21, 21, 0));
         newEventDto.setEventLocation("Salida, CO");
 
         mappedNewEntity = new Event();
         mappedNewEntity.setEventName(newEventDto.getEventName());
         mappedNewEntity.setEventLocation(newEventDto.getEventLocation());
-    // Entity uses LocalDateTime; mapper handles conversion in production code, but here we return a stub entity
-    mappedNewEntity.setStartAt(LocalDateTime.of(2025, 3, 21, 18, 0));
-    mappedNewEntity.setEndAt(LocalDateTime.of(2025, 3, 21, 21, 0));
+        // Entity uses Instant; mapper handles conversion in production code, but here we return a stub entity.
+        mappedNewEntity.setStartAt(CommunityTimezone.toInstant(newEventDto.getStartAt()));
+        mappedNewEntity.setEndAt(CommunityTimezone.toInstant(newEventDto.getEndAt()));
         mappedNewEntity.setEventType(newEventDto.getType());
         mappedNewEntity.setStatus(EventStatus.DRAFT);
     }
@@ -318,10 +321,10 @@ class EventServiceImplTest {
 
     @Test
     void listUpcoming_usesLimitAndSortAscending() {
-        LocalDateTime from = LocalDateTime.of(2025, 1, 1, 0, 0);
+        Instant from = Instant.parse("2025-01-01T00:00:00Z");
         Event e = new Event(); e.setEventId(9L);
         Page<Event> page = new PageImpl<>(List.of(e));
-        when(eventRepository.findByStartAtAfter(any(LocalDateTime.class), any(Pageable.class)))
+        when(eventRepository.findByStartAtAfter(any(Instant.class), any(Pageable.class)))
                 .thenReturn(page);
 
         EventDto dto = new EventDto(); dto.setEventId(9L);
@@ -356,7 +359,7 @@ class EventServiceImplTest {
         LocalDate date = LocalDate.of(2025, 4, 15);
         Event e1 = new Event(); e1.setEventId(1L);
 
-        when(eventRepository.findByStartAtBetween(any(LocalDateTime.class), any(LocalDateTime.class)))
+        when(eventRepository.findByStartAtBetween(any(Instant.class), any(Instant.class)))
                 .thenReturn(List.of(e1));
 
         EventDto d1 = new EventDto(); d1.setEventId(1L);
@@ -365,14 +368,14 @@ class EventServiceImplTest {
         List<EventDto> result = service.getEventsByDate(date);
         assertEquals(1, result.size());
 
-        ArgumentCaptor<LocalDateTime> startCap = ArgumentCaptor.forClass(LocalDateTime.class);
-        ArgumentCaptor<LocalDateTime> endCap = ArgumentCaptor.forClass(LocalDateTime.class);
+        ArgumentCaptor<Instant> startCap = ArgumentCaptor.forClass(Instant.class);
+        ArgumentCaptor<Instant> endCap = ArgumentCaptor.forClass(Instant.class);
         verify(eventRepository).findByStartAtBetween(startCap.capture(), endCap.capture());
 
-        LocalDateTime expectedStart = date.atStartOfDay();
-        LocalDateTime expectedEnd = date.plusDays(1).atStartOfDay().minusNanos(1);
-        assertEquals(expectedStart, startCap.getValue());
-        assertEquals(expectedEnd, endCap.getValue());
+        LocalDateTime expectedStartLocal = date.atStartOfDay();
+        LocalDateTime expectedEndLocal = date.plusDays(1).atStartOfDay().minusNanos(1);
+        assertEquals(CommunityTimezone.toInstant(expectedStartLocal), startCap.getValue());
+        assertEquals(CommunityTimezone.toInstant(expectedEndLocal), endCap.getValue());
     }
 
     @Test

@@ -7,8 +7,8 @@ import com.arkvalleyevents.msse692_backend.dto.response.EventDetailDto;
 import com.arkvalleyevents.msse692_backend.model.EventType;
 import org.springframework.data.domain.Page;
 
+import java.time.Instant;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -70,11 +70,17 @@ public interface EventService {
      */
     Page<EventDto> listEventsByOwnerFiltered(Long ownerUserId, Map<String, String> filters, int page, int size, String sort);
 
-    /** Lightweight helper for “what’s coming up from time X” with a hard cap. */
-    List<EventDto> listUpcoming(LocalDateTime from, int limit);
+    /**
+     * Lightweight helper for “what’s coming up from time X” with a hard cap.
+     * Uses Instant to match canonical storage for Event.startAt.
+     */
+    List<EventDto> listUpcoming(Instant from, int limit);
 
-    /** Public feed: only PUBLISHED events starting at or after 'from', ascending by startAt, limited. */
-    List<EventDto> listPublicUpcoming(LocalDateTime from, int limit);
+    /**
+     * Public feed: only PUBLISHED events starting at or after 'from', ascending by startAt, limited.
+     * Uses Instant to match canonical storage for Event.startAt.
+     */
+    List<EventDto> listPublicUpcoming(Instant from, int limit);
 
     /** Optional convenience queries (can be folded into listEvents via filters). */
     List<EventDto> getAllEvents();

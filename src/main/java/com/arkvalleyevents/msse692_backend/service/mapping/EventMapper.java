@@ -5,9 +5,12 @@ import com.arkvalleyevents.msse692_backend.dto.request.UpdateEventDto;
 import com.arkvalleyevents.msse692_backend.dto.response.EventDetailDto;
 import com.arkvalleyevents.msse692_backend.dto.response.EventDto;
 import com.arkvalleyevents.msse692_backend.model.Event;
+import com.arkvalleyevents.msse692_backend.util.CommunityTimezone;
+
 import org.mapstruct.*;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.time.ZoneId;
 
 @Mapper(
@@ -20,68 +23,87 @@ import java.time.ZoneId;
 )
 public interface EventMapper {
 
-    // Create: map DTO -> entity
-    // -------- Create --------
-    // DB generates ID
-    @Mapping(target = "eventId", ignore = true)
-    // entity defaults to DRAFT
-    @Mapping(target = "status", ignore = true)
-    // Set in service impl
-    @Mapping(target = "slug", ignore = true)
-//    @Mapping(target = "eventType", ignore = true)
+        // Create: map DTO -> entity
+        // -------- Create --------
+        // DB generates ID
+        @Mapping(target = "eventId", ignore = true)
+        // entity defaults to DRAFT
+        @Mapping(target = "status", ignore = true)
+        // Set in service impl
+        @Mapping(target = "slug", ignore = true)
+        //    @Mapping(target = "eventType", ignore = true)
         @Mapping(target = "eventType", source = "type")
-    @Mapping(target = "createdAt", ignore = true)
-    @Mapping(target = "updatedAt", ignore = true)
-    @Mapping(target = "version", ignore = true)
-    @Mapping(target = "venue", ignore = true)
-    @Mapping(target = "artists", ignore = true)
-
+        @Mapping(target = "createdAt", ignore = true)
+        @Mapping(target = "updatedAt", ignore = true)
+        @Mapping(target = "version", ignore = true)
+        @Mapping(target = "venue", ignore = true)
+        @Mapping(target = "artists", ignore = true)
+        @Mapping(target = "startAt", source = "startAt", qualifiedByName = "denverLocalToInstant")
+        @Mapping(target = "endAt", source = "endAt", qualifiedByName = "denverLocalToInstant")
         Event toEntity(CreateEventDto src);
 
-    // -------- Update (partial merge; ignores nulls) --------
-    // Pass the entity to update as the first parameter, the DTO as the second
-    // target is an existing Event loaded from DB that is mutating in place.
-    @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
-    @Mapping(target = "eventId", ignore = true)
-    @Mapping(target = "slug", ignore = true)
+        // -------- Update (partial merge; ignores nulls) --------
+        // Pass the entity to update as the first parameter, the DTO as the second
+        // target is an existing Event loaded from DB that is mutating in place.
+        @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
+        @Mapping(target = "eventId", ignore = true)
+        @Mapping(target = "slug", ignore = true)
         @Mapping(target = "eventType", source = "type")
-    @Mapping(target = "status", ignore = true)
-    @Mapping(target = "createdAt", ignore = true)
-    @Mapping(target = "updatedAt", ignore = true)
-    @Mapping(target = "version", ignore = true)
-    @Mapping(target = "venue", ignore = true)
-    @Mapping(target = "artists", ignore = true)
-    void updateEntity(@MappingTarget Event target, UpdateEventDto src);
+        @Mapping(target = "status", ignore = true)
+        @Mapping(target = "createdAt", ignore = true)
+        @Mapping(target = "updatedAt", ignore = true)
+        @Mapping(target = "version", ignore = true)
+        @Mapping(target = "venue", ignore = true)
+        @Mapping(target = "artists", ignore = true)
+        @Mapping(target = "startAt", source = "startAt", qualifiedByName = "denverLocalToInstant")
+        @Mapping(target = "endAt", source = "endAt", qualifiedByName = "denverLocalToInstant")
+        void updateEntity(@MappingTarget Event target, UpdateEventDto src);
 
-    // ---------- To summary DTO ----------
-    @Mappings({
-            @Mapping(target = "type", source = "eventType"),
-            @Mapping(target = "typeDisplayName",
-                    expression = "java(src.getEventType() != null ? src.getEventType().getTypeDisplayName() : null)"),
-            @Mapping(target = "statusDisplayName",
-                    expression = "java(src.getStatus() != null ? src.getStatus().getStatusDisplayName() : null)"),
-            // if you expose only IDs for related entities in summary:
-//            @Mapping(target = "venueId",
-//                    expression = "java(src.getVenue() != null ? src.getVenue().getVenueId() : null)")
-    })
-    EventDto toDto(Event src);
-
-         // ---------- To detail DTO ----------
+        // ---------- To summary DTO ----------
         @Mappings({
-            @Mapping(target = "type", source = "eventType"),
-            @Mapping(target = "typeDisplayName",
-                    expression = "java(src.getEventType() != null ? src.getEventType().getTypeDisplayName() : null)"),
-            @Mapping(target = "statusDisplayName",
-                    expression = "java(src.getStatus() != null ? src.getStatus().getStatusDisplayName() : null)")
-            // If VenueDto/ArtistDto are mapped via used mappers, no extra mapping needed here
-    })
-    EventDetailDto toDetailDto(Event src);
+                @Mapping(target = "type", source = "eventType"),
+                @Mapping(target = "typeDisplayName",
+                        expression = "java(src.getEventType() != null ? src.getEventType().getTypeDisplayName() : null)"),
+                @Mapping(target = "statusDisplayName",
+                        expression = "java(src.getStatus() != null ? src.getStatus().getStatusDisplayName() : null)"),
+                @Mapping(target = "startAt", source = "startAt", qualifiedByName = "instantToDenverOffset"),
+                @Mapping(target = "endAt", source = "endAt", qualifiedByName = "instantToDenverOffset")
+                // if you expose only IDs for related entities in summary:
+        //            @Mapping(target = "venueId",
+        //                    expression = "java(src.getVenue() != null ? src.getVenue().getVenueId() : null)")
+        })
+        EventDto toDto(Event src);
+
+        // ---------- To detail DTO ----------
+        @Mappings({
+                @Mapping(target = "type", source = "eventType"),
+                @Mapping(target = "typeDisplayName",
+                        expression = "java(src.getEventType() != null ? src.getEventType().getTypeDisplayName() : null)"),
+                @Mapping(target = "statusDisplayName",
+                        expression = "java(src.getStatus() != null ? src.getStatus().getStatusDisplayName() : null)"),
+                @Mapping(target = "startAt", source = "startAt", qualifiedByName = "instantToDenverOffset"),
+                @Mapping(target = "endAt", source = "endAt", qualifiedByName = "instantToDenverOffset")
+                // If VenueDto/ArtistDto are mapped via used mappers, no extra mapping needed here
+        })
+        EventDetailDto toDetailDto(Event src);
 
         // ====== Type conversions for MapStruct ======
-        default LocalDateTime instantToLocalDateTime(Instant instant) {
-                if (instant == null) return null;
-                // Convert to server default zone (configure JVM TZ or provide custom ZoneId if needed)
-                return LocalDateTime.ofInstant(instant, ZoneId.systemDefault());
+        // Old Policy. Uses ZoneId.systemDefault()
+        // default LocalDateTime instantToLocalDateTime(Instant instant) {
+        //         if (instant == null) return null;
+        //         // Convert to server default zone (configure JVM TZ or provide custom ZoneId if needed)
+        //         return LocalDateTime.ofInstant(instant, ZoneId.systemDefault());
+        // }
+        
+        // ----- MapStruct conversion hooks -----
+        @Named("denverLocalToInstant")
+        default Instant denverLocalToInstant(LocalDateTime denverLocal) {
+                return CommunityTimezone.toInstant(denverLocal);
+        }
+
+        @Named("instantToDenverOffset")
+        default OffsetDateTime instantToDenverOffset(Instant instant) {
+                return CommunityTimezone.toDenverOffset(instant);
         }
 
 }

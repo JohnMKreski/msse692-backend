@@ -9,6 +9,7 @@ import com.arkvalleyevents.msse692_backend.dto.response.EventAuditDto;
 import com.arkvalleyevents.msse692_backend.dto.response.EventPageResponse;
 import com.arkvalleyevents.msse692_backend.service.EventAuditService;
 import com.arkvalleyevents.msse692_backend.service.EventService;
+import com.arkvalleyevents.msse692_backend.util.CommunityTimezone;
 import com.arkvalleyevents.msse692_backend.security.policy.EventAccessPolicy;
 import com.arkvalleyevents.msse692_backend.security.context.UserContext;
 import com.arkvalleyevents.msse692_backend.security.context.UserContextProvider;
@@ -28,7 +29,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
- 
+
 import org.springframework.data.domain.Page;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Max;
@@ -37,11 +38,10 @@ import jakarta.validation.ValidationException;
 import java.net.URI;
 import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.ZoneOffset;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
- 
+
 
 @RestController
 @RequestMapping("/api/v1/events") // API versioned base path (added v1)
@@ -258,7 +258,7 @@ public class EventsController {
 
     // Public upcoming feed (only PUBLISHED future events)
     @GetMapping("/public-upcoming") // GET /api/v1/events/public-upcoming?from=ISO&limit=10
-    @Operation(summary = "List upcoming public events", description = "Returns future PUBLISHED events starting at 'from' (Instant), limited by 'limit'.")
+    @Operation(summary = "List upcoming public events", description = "Returns future PUBLISHED events starting at 'from' (America/Denver wall time), limited by 'limit'.")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "OK",
             content = @Content(mediaType = "application/json",
@@ -267,16 +267,15 @@ public class EventsController {
             content = @Content(schema = @Schema(implementation = ApiErrorDto.class)))
     })
     public List<EventDto> listPublicUpcoming(
-            @RequestParam(name = "from", required = false) Instant from,
+            // LocalDateTime = America/Denver wall-time without timezone info; Instant = absolute moment in UTC.
+            @RequestParam(name = "from", required = false) LocalDateTime from,
             @RequestParam(name = "limit", required = false, defaultValue = "10") @Min(1) @Max(100) int limit) {
-        // Accept full ISO-8601 instants (e.g., 2025-11-12T21:16:46.100Z). Spring will bind to Instant.
-        // Convert to UTC LocalDateTime to match service contract.
         if (limit < 1 || limit > 100) {
             throw new ValidationException("Parameter 'limit' must be between 1 and 100");
         }
-        Instant effectiveFrom = (from == null) ? Instant.now() : from;
-        LocalDateTime start = LocalDateTime.ofInstant(effectiveFrom, ZoneOffset.UTC);
-        return eventService.listPublicUpcoming(start, limit);
+        // 'from' is interpreted as America/Denver wall time.
+        Instant effectiveFrom = (from == null) ? Instant.now() : CommunityTimezone.toInstant(from);
+        return eventService.listPublicUpcoming(effectiveFrom, limit);
     }
 
     // GET /api/events/{id}/audits  (read-only audit trail)

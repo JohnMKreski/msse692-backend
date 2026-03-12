@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * Composes VenueDto and ArtistDto instead of duplicating their fields.
@@ -23,8 +24,9 @@ public class EventDetailDto {
     private EventType type;
     private String typeDisplayName; // Computed field for UI display
 
-    private LocalDateTime startAt;
-    private LocalDateTime endAt;
+    //Changed from LocalDateTime to OffsetDateTime to include timezone offset information for the frontend.
+    private OffsetDateTime startAt;
+    private OffsetDateTime endAt;
 
     private EventStatus status;
     private String statusDisplayName; // Computed field for UI display
