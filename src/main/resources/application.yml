@@ -46,13 +46,12 @@ spring:
     username: ${DB_USER}
     password: ${DB_PASS}
   jpa:
-    hibernate.ddl-auto: validate #JPA checks but doesn’t mutate schema
+    hibernate.ddl-auto: update 
     properties.hibernate.jdbc.lob.non_contextual_creation: true
   flyway:
     enabled: true
     # Baseline existing schema so Flyway starts at version 1 without trying to create existing tables
-    baseline-on-migrate: true
-    baseline-version: 1
+    baseline-on-migrate: false
     locations: classpath:db/migration
   security:
     oauth2:
@@ -64,7 +63,7 @@ app:
     firebase:
       audience: ${FIREBASE_PROJECT_ID}
   cors:
-    allowed-origins: https://app.arkvalleyevents.com,https://www.arkvalleyevents.com
+    allowed-origins: https://app.arkvalleyevents.com
 management:
   endpoints.web.exposure.include: health,info
 logging:

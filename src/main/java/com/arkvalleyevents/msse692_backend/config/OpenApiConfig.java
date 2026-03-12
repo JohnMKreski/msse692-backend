@@ -41,8 +41,8 @@ public class OpenApiConfig implements WebMvcConfigurer {
                         .version("1.0")
                         .description("Backend REST API for Ark Valley Events"))
                 .servers(List.of(
-                        new Server().url("http://localhost:8080").description("Local Development Server")
-                        // add prod server later, e.g. new Server().url("https://api.arkvalleyevents.com")
+                        new Server().url("http://localhost:8080").description("Local Development Server"),
+                        new Server().url("https://api.arkvalleyevents.com").description("Production Server")
                 ))
                 .addSecurityItem(new SecurityRequirement().addList(securitySchemeName))
                 .components(new Components()
